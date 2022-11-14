@@ -126,7 +126,7 @@ class GeneticAlgo:
         bestIndividuals = np.empty((n), dtype=Individual)
 
         for i in range(n):
-            best = np.argmin(population[i].getEvaluation())
+            best = np.argmin(self.getAllEvaluations(population))
             bestIndividuals[i] = population[best]
             population = np.delete(population, best, 0)
 
