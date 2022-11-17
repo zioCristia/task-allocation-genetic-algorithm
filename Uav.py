@@ -16,3 +16,6 @@ class Uav:
     def getStartPosition(self) -> Position:
         return self.startPosition
     
+    def getMass(self):
+        return self.mass
+    

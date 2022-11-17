@@ -2,7 +2,7 @@ import utility
 from Position import Position
 
 class Task:
-    def __init__(self, startPosition: Position, endPosition: Position, packageMass = 0) -> None:
+    def __init__(self, startPosition: Position, endPosition: Position, packageMass: float = 1) -> None:
         self.__startPosition = startPosition
         self.__endPosition = endPosition
         self.__trajectDistance = utility.distance(startPosition, endPosition)

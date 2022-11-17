@@ -6,10 +6,17 @@ import numpy as np
 # arrayOfArrays = np.array([array1, array2, array3], dtype=object)
 # print(arrayOfArrays)
 
-arr = list(range(9))
-np.random.shuffle(arr)
-print(arr)
+# arr = list(range(9))
+# np.random.shuffle(arr)
+# print(arr)
 
 # print(np.sort(np.random.randint(5, size=(2))))
-print(list(range(0,5)))
-print(np.random.choice(list(range(3,5))))
+# print(list(range(0,5)))
+# print(np.random.choice(list(range(3,5))))
+
+# a = np.where(np.array([0,0,1,1,0,1]) == 1)
+
+# for i in np.where(np.array([0,0,1,1,0,1]) == 1)[0]:
+#     print(i)
+
+print(np.empty(0))

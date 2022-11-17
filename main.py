@@ -16,13 +16,9 @@ First try assumptions:
 * minimize the total delivery time and each drone delivery time
 * all the drones start from the (0,0) position
 * the drone will end in the same spot where started
-* all the drones are used
 
-* max payload per ogni drone
-* payload di ogni drone
 * deadline delle task
 * batteria
-* preferire drone che consuma meno
 """
 """
 DA NOTARE:
@@ -137,7 +133,7 @@ def individualCreation():
     # more simpler random assignation directly with two separete chromosome
     chromosome = list(range((constant.NT)))
     np.random.shuffle(chromosome)
-    
+
     previousPosition = 0
     for i in range(constant.NU-1):
         cutPosition[i] = np.random.choice(list(range(int(previousPosition), constant.NT)))

@@ -10,7 +10,14 @@ from Task import Task
 from Uav import Uav
 from Position import Position
 from typing import List
-#from numpy.typing import NDArray
+
+"""
+VINCOLI:
+* max payload per drone
+* preferire drone che consuma meno
+
+Non essendo nella fit function, l'opzione che consuma meno non viene valutata meglio
+"""
 
 class GeneticAlgo:
     # minimum time weight factor
@@ -52,6 +59,62 @@ class GeneticAlgo:
 
         return Individual(chromosome, self.individualEvaluation(chromosome))
     
+    def testIndividualCreation(self) -> Individual:
+        chromosome = self.testChromosomeCreation()
+        
+        return Individual(chromosome, self.individualEvaluation(chromosome))
+
+    def testChromosomeCreation(self) -> Chromosome:
+        # TODO: add deadline ordering
+        tasksOrder = np.empty(0)
+        cutPositions = np.empty(self.NU)
+        uavTaskSelection = self.taskUavSelection()
+        
+        offset = 0
+        for u in range(self.NU):
+            uavTask = np.where(uavTaskSelection == u)[0]
+            np.random.shuffle(uavTask)
+            # np.choice(uavTask, p=deadlineProbabilities(uavTask))
+            tasksOrder = np.concatenate((tasksOrder, uavTask))
+            cutPositions[u] = len(uavTask) + offset
+            offset = len(tasksOrder)
+        
+        return Chromosome(tasksOrder, cutPositions)
+
+    def taskUavSelection(self):
+        uavSelection = np.empty(self.NT)
+
+        probabilitiesMatrix = self.taskRestrictionProbabilities()
+        for t in range(self.NT):
+            uavSelection[t] = np.random.choice(self.NU, p=probabilitiesMatrix[t])
+        
+        return uavSelection
+
+    def taskRestrictionProbabilities(self):
+        return self.mostEfficientUavProbabilities(self.maxPayloadMatrix())
+
+    def mostEfficientUavProbabilities(self, tasksUavsMatrix):
+        for t in range(self.NT):
+            uavsMassSum = 0
+            for u in np.where(tasksUavsMatrix[t] == 1)[0]:
+                uavsMassSum += 1/uavs[u].getMass()
+            
+            for u in range(self.NU):
+                tasksUavsMatrix[t][u] *= (1/uavs[u].getMass())/uavsMassSum
+        
+        return tasksUavsMatrix
+
+    def maxPayloadMatrix(self):
+        # TODO: add function to control all the task can be performed (min(sum(righe))>0)
+        maxPayload = np.zeros((self.NT, self.NU))
+
+        for t in range(self.NT):
+            for u in range(self.NU):
+                if self.tasks[t].getPackageMass() < self.uavs[u].getMaxPayloadMass():
+                    maxPayload[t][u] = 1
+        
+        return maxPayload
+
     def randomTaskAssignation(self) -> List[int]:
         chromosome = list(range((self.NT)))
         np.random.shuffle(chromosome)
@@ -108,7 +171,8 @@ class GeneticAlgo:
 
     def initialPopulationCreation(self):
         for i in range(self.NP):
-            self.population[i] = self.individualCreation()
+            # self.population[i] = self.individualCreation()
+            self.population[i] = self.testIndividualCreation()
 
     def oppositePopulationCreation(self):
         for i in range(self.NP):
@@ -291,13 +355,13 @@ class GeneticAlgo:
         plt.show()
 
 
-uav1 = Uav(5000, 2, 1.5, Position(0, 0))
-uav2 = Uav(5000, 2, 1.5, Position(0, 0))
-task1 = Task(Position(1, 1), Position(1, 3))
-task2 = Task(Position(3, 7), Position(2, 3))
-task3 = Task(Position(8, 2), Position(8, 4))
-task4 = Task(Position(6, 4), Position(4, 6))
-task5 = Task(Position(1, 4), Position(7, 3))
+uav1 = Uav(5000, 2, 2, Position(0, 0))
+uav2 = Uav(5000, 4, 4, Position(0, 0))
+task1 = Task(Position(1, 1), Position(1, 3), 1)
+task2 = Task(Position(3, 7), Position(2, 3), 3)
+task3 = Task(Position(8, 2), Position(8, 4), 2)
+task4 = Task(Position(6, 4), Position(4, 6), 3.5)
+task5 = Task(Position(1, 4), Position(7, 3), 1)
 
 uavs = np.array((uav1,uav2))
 tasks = np.array([task1, task2, task3, task4, task5])
