@@ -15,19 +15,28 @@ from typing import List
 VINCOLI:
 * max payload per drone
 * preferire drone che consuma meno
+* preferire ripartizione che consuma meno (fitting function t*m)
+
+imporre come vincolo il giorno di consegna (time window)
+migliorare fit function per energia (mass * tempo per ora poi da considerare velocità e consumo migliore)
+equazione marco poi
 
 Non essendo nella fit function, l'opzione che consuma meno non viene valutata meglio
+
+TO ADD:
+- iteration stop if last best evaluation similar current evaluation
+- add use of respectDeliveryWindow()
 """
 
 class GeneticAlgo:
-    # minimum time weight factor
+    # minimum maximum time weight factor
     ALPHA = 0.5
     # minimum consumption weight factor (alpha + beta = 1)
     BETA = 0.5
     # number of population individuals (paire number at least > 6*BEST_TAKEN)
     NP = 60
     # number of the fittest chromosomes taken without the roulette wheel selection
-    BEST_TAKEN = 5
+    BEST_TAKEN = 3
     # crossover probability
     PC = 0.3
     # mutation probability
@@ -65,7 +74,6 @@ class GeneticAlgo:
         return Individual(chromosome, self.individualEvaluation(chromosome))
 
     def testChromosomeCreation(self) -> Chromosome:
-        # TODO: add deadline ordering
         tasksOrder = np.empty(0)
         cutPositions = np.empty(self.NU)
         uavTaskSelection = self.taskUavSelection()
@@ -74,7 +82,6 @@ class GeneticAlgo:
         for u in range(self.NU):
             uavTask = np.where(uavTaskSelection == u)[0]
             np.random.shuffle(uavTask)
-            # np.choice(uavTask, p=deadlineProbabilities(uavTask))
             tasksOrder = np.concatenate((tasksOrder, uavTask))
             cutPositions[u] = len(uavTask) + offset
             offset = len(tasksOrder)
@@ -142,8 +149,23 @@ class GeneticAlgo:
         return Individual(chromosome, self.individualEvaluation(chromosome))
 
     def individualEvaluation(self, chromosome: Chromosome) -> float:
-        return self.objectiveFunction(self.uavsDistances(chromosome))
+        return self.objectiveFunction(self.uavsDistances(chromosome), self.uavsMasses(chromosome))
     
+    def respectDeliveryWindow(self, chromosome: Chromosome) -> bool:
+        offset = 0
+        lastOffset = 0
+        currentDrone = 0
+        for t in range(len(chromosome.getTasksOrder())):
+            if (chromosome.getCutPositions()[currentDrone] == t):
+                lastOffset = offset
+                currentDrone += 1
+            
+            offset += 1
+            if (tasks[int(chromosome.getTasksOrder()[t])].getMaxDeliveryWindow() < t - lastOffset):
+                return False
+        
+        return True
+
     def uavsDistances(self, chromosome: Chromosome):
         uavsDistances = np.empty((len(chromosome.getCutPositions())))
 
@@ -153,6 +175,14 @@ class GeneticAlgo:
             lastCuttingPosition = uavNumber
         
         return uavsDistances
+    
+    def uavsMasses(self, chromosome: Chromosome):
+        uavsMasses = np.empty((len(chromosome.getCutPositions())))
+
+        for uavNumber in range(len(chromosome.getCutPositions())):
+            uavsMasses[uavNumber] = self.uavs[uavNumber].getMass()
+        
+        return uavsMasses
 
     def totalTasksDistance(self, uavIndex: int, tasksIndexes: List[int]) -> float:
         distance = 0
@@ -166,8 +196,8 @@ class GeneticAlgo:
         distance += utility.distance(lastUavPosition, uavs[uavIndex].startPosition)
         return distance
 
-    def objectiveFunction(self, distancesUav: List[float]):
-        return self.ALPHA * max(distancesUav) + self.BETA * distancesUav.sum()
+    def objectiveFunction(self, distancesUav: List[float], massesUav: List[float]):
+        return self.ALPHA * max(distancesUav*massesUav) + self.BETA * (distancesUav*massesUav).sum()
 
     def initialPopulationCreation(self):
         for i in range(self.NP):
@@ -175,16 +205,46 @@ class GeneticAlgo:
             self.population[i] = self.testIndividualCreation()
 
     def oppositePopulationCreation(self):
+        self.oppositePopulation = np.empty(self.NP, dtype=Individual)
         for i in range(self.NP):
             self.oppositePopulation[i] = self.oppositeIndividualCreation(self.population[i].getChromosome())
+
+    def deliveryWindowPopulationSelection(self):
+        selectedPopulation = np.empty(0)
+        selectedOppositePopulation = np.empty(0)
+
+        for i in range(self.NP):
+            if self.respectDeliveryWindow(self.population[i].getChromosome()):
+                selectedPopulation = np.append(selectedPopulation, self.population[i])
+
+            if self.respectDeliveryWindow(self.oppositePopulation[i].getChromosome()):
+                selectedOppositePopulation = np.append(selectedOppositePopulation, self.oppositePopulation[i])
+        
+        self.population = selectedPopulation
+        self.oppositePopulation = selectedOppositePopulation
 
     def newPopulationSelection(self):
         # we take BEST_TAKEN chromosomes from population and opposite population and put them directly
         # in the output population. The rest is taken by a roulette wheel selection
+        (populationIndividualsNumber, oppositePopulationIndividualsNumber) = self.populationsNewSize()
+
+        # self.population = np.concatenate((self.takeBestN(self.population, populationIndividualsNumber),
+        #                                 self.takeBestN(self.oppositePopulation, oppositePopulationIndividualsNumber)))
+
         self.population = np.concatenate((self.takeBestN(self.population, self.BEST_TAKEN),
-                                self.rouletteWheelSelection(self.population),
+                                self.rouletteWheelSelection(self.population, populationIndividualsNumber - self.BEST_TAKEN),
                                 self.takeBestN(self.oppositePopulation, self.BEST_TAKEN),
-                                self.rouletteWheelSelection(self.oppositePopulation)))
+                                self.rouletteWheelSelection(self.oppositePopulation, oppositePopulationIndividualsNumber - self.BEST_TAKEN)))
+
+    def populationsNewSize(self):
+        totalIndividuals = self.population.size + self.oppositePopulation.size
+        populationIndividualsNumber = int(self.NP * self.population.size/totalIndividuals)
+        oppositePopulationIndividualsNumber = int(self.NP * self.oppositePopulation.size/totalIndividuals)
+
+        if populationIndividualsNumber + oppositePopulationIndividualsNumber < self.NP:
+            populationIndividualsNumber += self.NP - (populationIndividualsNumber + oppositePopulationIndividualsNumber)
+        
+        return (populationIndividualsNumber, oppositePopulationIndividualsNumber)
 
     def takeBestN(self, population: List[Individual], n: int) -> List[Individual]:
         bestIndividuals = np.empty((n), dtype=Individual)
@@ -196,11 +256,11 @@ class GeneticAlgo:
 
         return bestIndividuals
 
-    def rouletteWheelSelection(self, population):
-        individualsChosen = np.empty((int(self.NP/2) - self.BEST_TAKEN), dtype=Individual)
+    def rouletteWheelSelection(self, population: List[Individual], n: int):
+        individualsChosen = np.empty((n), dtype=Individual)
 
-        for i in range(int(self.NP/2) - self.BEST_TAKEN):
-            choice = np.random.choice(self.NP-i, p=self.probabilitiesSelection(self.getAllEvaluations(population)))
+        for i in range(n):
+            choice = np.random.choice(population.size, p=self.probabilitiesSelection(self.getAllEvaluations(population)))
             individualsChosen[i] = population[choice]
             population = np.delete(population, choice, 0)
 
@@ -313,11 +373,13 @@ class GeneticAlgo:
 
         for i in range(self.MAX_ITER):
             self.oppositePopulationCreation()
+            self.deliveryWindowPopulationSelection()
             self.newPopulationSelection()
             self.populationCrossover()
             # TODO: add mutation
             # offspringCreation(initialPopul)
 
+        self.deliveryWindowPopulationSelection()
         self.solution = self.takeBestN(self.population, 1)[0]
         
         print("\nBest ending evaluation")
@@ -356,11 +418,11 @@ class GeneticAlgo:
 
 
 uav1 = Uav(5000, 2, 2, Position(0, 0))
-uav2 = Uav(5000, 4, 4, Position(0, 0))
-task1 = Task(Position(1, 1), Position(1, 3), 1)
+uav2 = Uav(5000, 7, 6, Position(0, 0))
+task1 = Task(Position(1, 1), Position(1, 3), 5, 1)
 task2 = Task(Position(3, 7), Position(2, 3), 3)
 task3 = Task(Position(8, 2), Position(8, 4), 2)
-task4 = Task(Position(6, 4), Position(4, 6), 3.5)
+task4 = Task(Position(6, 4), Position(4, 6), 3, 3.5)
 task5 = Task(Position(1, 4), Position(7, 3), 1)
 
 uavs = np.array((uav1,uav2))
