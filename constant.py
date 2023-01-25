@@ -19,3 +19,10 @@ PM = 0.3
 ALPHA = 0.5
 # minimum consumption weight factor (alpha + beta = 1)
 BETA = 0.5
+
+
+eta = 1
+cd = 0.3
+rho = 1.0125
+Ad = 0.1
+g = 9.81

@@ -10,22 +10,26 @@ from Task import Task
 from Uav import Uav
 from Position import Position
 from typing import List
+from ChargingPoint import ChargingPoint
 
 """
 VINCOLI:
 * max payload per drone
+* delivery window
 * preferire drone che consuma meno
 * preferire ripartizione che consuma meno (fitting function t*m)
-
-imporre come vincolo il giorno di consegna (time window)
-migliorare fit function per energia (mass * tempo per ora poi da considerare velocità e consumo migliore)
-equazione marco poi
-
-Non essendo nella fit function, l'opzione che consuma meno non viene valutata meglio
 
 TO ADD:
 - iteration stop if last best evaluation similar current evaluation
 - add use of respectDeliveryWindow()
+
+- dopo deliveryWindowEvaluation, facciamo il controllo per ogni drone sulla batteria consumata e aggiungo task
+    di ricarica se necessarie
+- prossima task è fatta se basta la batteria, sennò prima faccio la ricarica
+- velocità scelta per minimizzare l'eq1, in base a quella troviamo il tempo da dare alla fitting function
+- aggiungo nel task order la task di ricarica stando attenti ad aggiornare le cut positions
+- le task di ricarica sono per un primo momento nel punto 0 ma poi ne aggiungiamo diverse e mettiamo una ricerca alla migliore
+- alla fine faccio di nuovo un controllo sul delivery window
 """
 
 class GeneticAlgo:
@@ -50,30 +54,31 @@ class GeneticAlgo:
     oppositePopulation = np.empty((NP), dtype=Individual)
     solution = Individual(Chromosome(0,0), 0)
 
-    def __init__(self, uavs: List[Uav], tasks: List[Task]): #np.ndarray for typing np array
+    def __init__(self, uavs: List[Uav], tasks: List[Task], chargingPoints: List[ChargingPoint]): #np.ndarray for typing np array
         self.uavs = uavs
         self.tasks = tasks
+        self.chargingPoints = chargingPoints
+        self.allTasks = np.append(tasks, chargingPoints)
         self.NU = len(uavs)
         self.NT = len(tasks)
+        self.NCP = len(chargingPoints)
+        self.uavsTasksEnergy = np.empty(self.NU)
         self.run()
 
     def getSolution(self):
         return self.solution
 
-    def individualCreation(self) -> Individual:
-        tasks = self.randomTaskAssignation()
-        cutPosition = self.randomCutPosition()
-
-        chromosome = Chromosome(tasks, cutPosition)
-
-        return Individual(chromosome, self.individualEvaluation(chromosome))
+    def getUavs(self):
+        return self.uavs
     
-    def testIndividualCreation(self) -> Individual:
-        chromosome = self.testChromosomeCreation()
+    def individualCreation(self) -> Individual:
+        chromosome = self.chromosomeCreation()
+        while not self.respectDeliveryWindow(chromosome):
+            chromosome = self.chromosomeCreation()
         
         return Individual(chromosome, self.individualEvaluation(chromosome))
 
-    def testChromosomeCreation(self) -> Chromosome:
+    def chromosomeCreation(self) -> Chromosome:
         tasksOrder = np.empty(0)
         cutPositions = np.empty(self.NU)
         uavTaskSelection = self.taskUavSelection()
@@ -82,11 +87,50 @@ class GeneticAlgo:
         for u in range(self.NU):
             uavTask = np.where(uavTaskSelection == u)[0]
             np.random.shuffle(uavTask)
+            uavTask = self.addChargingTasks(uavTask, u)
             tasksOrder = np.concatenate((tasksOrder, uavTask))
             cutPositions[u] = len(uavTask) + offset
             offset = len(tasksOrder)
         
         return Chromosome(tasksOrder, cutPositions)
+
+    def addChargingTasks(self, taskOrder, uavNumber):
+        uavs[uavNumber].reset()
+
+        if len(taskOrder) == 0: 
+            return taskOrder
+
+        uav = uavs[uavNumber]
+
+        uav.takeTask(tasks[taskOrder[0]])
+        for t in range(1, len(taskOrder) - 1):
+            tempUav = uav
+            cp = self.optimumChargingPoint(tasks[t+1])
+
+            if not tempUav.canTakeTasks(np.array([tasks[t], self.chargingPoints[cp]])):
+                # the drone can't complete the task t and charge after, we go to a charging point first
+                uav.takeTask(self.chargingPoints[cp])
+                taskOrder = np.insert(taskOrder, t, cp + self.NT)   # bc we add the charging task at the end in all tasks array
+                t+=1
+
+            else:
+                tempUav.takeTask(self.tasks[t])
+                uav = tempUav
+
+        uav.takeTask(tasks[taskOrder[len(taskOrder)-1]])
+        uavs[uavNumber] = uav
+
+        return taskOrder
+    
+    def optimumChargingPoint(self, task: Task, nextTask: Task = 0):
+        distances = utility.tasksDistances(task.getEndPosition(), self.chargingPoints)
+
+        if nextTask != 0:
+            # TODO: check only the first elements of distances
+            for cp in range(self.NCP):
+                distances[cp] = utility.taskDistance(task.getEndPosition(), self.chargingPoints[cp]) + utility.taskDistance(self.chargingPoints[cp], nextTask.getEndPosition())
+        
+        return np.argmin(distances)
 
     def taskUavSelection(self):
         uavSelection = np.empty(self.NT)
@@ -149,8 +193,17 @@ class GeneticAlgo:
         return Individual(chromosome, self.individualEvaluation(chromosome))
 
     def individualEvaluation(self, chromosome: Chromosome) -> float:
-        return self.objectiveFunction(self.uavsDistances(chromosome), self.uavsMasses(chromosome))
+        for u in range(self.NU):
+            self.uavsTasksEnergy[u] = uavs[u].getTotalEnergyUsed()
+
+        #return self.distanceMassObjectiveFunction(self.getUavsDistances(chromosome), self.getUavsMasses(chromosome))
+        # energy optimization
+        return self.energyObjectiveFunction()
     
+    def respectConstraints(self, chromosome: Chromosome) -> bool:
+        # TODO: add here the other constraints (payload)
+        return self.respectDeliveryWindow(chromosome)
+
     def respectDeliveryWindow(self, chromosome: Chromosome) -> bool:
         offset = 0
         lastOffset = 0
@@ -166,7 +219,7 @@ class GeneticAlgo:
         
         return True
 
-    def uavsDistances(self, chromosome: Chromosome):
+    def getUavsDistances(self, chromosome: Chromosome) -> List[float]:
         uavsDistances = np.empty((len(chromosome.getCutPositions())))
 
         lastCuttingPosition = 0
@@ -176,7 +229,7 @@ class GeneticAlgo:
         
         return uavsDistances
     
-    def uavsMasses(self, chromosome: Chromosome):
+    def getUavsMasses(self, chromosome: Chromosome) -> List[float]:
         uavsMasses = np.empty((len(chromosome.getCutPositions())))
 
         for uavNumber in range(len(chromosome.getCutPositions())):
@@ -186,23 +239,25 @@ class GeneticAlgo:
 
     def totalTasksDistance(self, uavIndex: int, tasksIndexes: List[int]) -> float:
         distance = 0
-        lastUavPosition = self.uavs[uavIndex].getStartPosition()
+        lastUavPosition = self.uavs[uavIndex].getPosition()
 
         for t in tasksIndexes:
             t = int(t)
             distance += (self.tasks[t].getTrajectDistance() + utility.distance(lastUavPosition, self.tasks[t].getStartPosition()))
             lastUavPosition = self.tasks[t].getEndPosition()
         
-        distance += utility.distance(lastUavPosition, uavs[uavIndex].startPosition)
+        distance += utility.distance(lastUavPosition, uavs[uavIndex].getPosition())
         return distance
 
-    def objectiveFunction(self, distancesUav: List[float], massesUav: List[float]):
+    def distanceMassObjectiveFunction(self, distancesUav: List[float], massesUav: List[float]):
         return self.ALPHA * max(distancesUav*massesUav) + self.BETA * (distancesUav*massesUav).sum()
+
+    def energyObjectiveFunction(self):
+        return self.ALPHA * max(self.uavsTasksEnergy) + self.BETA * self.uavsTasksEnergy.sum()
 
     def initialPopulationCreation(self):
         for i in range(self.NP):
-            # self.population[i] = self.individualCreation()
-            self.population[i] = self.testIndividualCreation()
+            self.population[i] = self.individualCreation()
 
     def oppositePopulationCreation(self):
         self.oppositePopulation = np.empty(self.NP, dtype=Individual)
@@ -396,8 +451,8 @@ class GeneticAlgo:
         plt.plot([0], [0])
         for t in tasks:
             plt.plot([t.getStartPosition().getX(), t.getEndPosition().getX()], [t.getStartPosition().getY(), t.getEndPosition().getY()])
-            plt.plot([t.getStartPosition().getX()], [t.getStartPosition().getY()], 'o')
-            plt.plot([t.getEndPosition().getX()], [t.getEndPosition().getY()], '^')
+            plt.plot([t.getStartPosition().getX()], [t.getStartPosition().getY()], 'o', label='Task start position')
+            plt.plot([t.getEndPosition().getX()], [t.getEndPosition().getY()], '^', label='Task end position')
 
         for i in range(self.NU):
             droneTask = np.empty(0)
@@ -417,17 +472,20 @@ class GeneticAlgo:
         plt.show()
 
 
-uav1 = Uav(5000, 2, 2, Position(0, 0))
-uav2 = Uav(5000, 7, 6, Position(0, 0))
+uav1 = Uav(600, 2, 2, Position(0, 0))
+uav2 = Uav(400, 7, 6, Position(0, 0))
 task1 = Task(Position(1, 1), Position(1, 3), 5, 1)
-task2 = Task(Position(3, 7), Position(2, 3), 3)
-task3 = Task(Position(8, 2), Position(8, 4), 2)
+task2 = Task(Position(3, 7), Position(2, 3), 3, 1)
+task3 = Task(Position(8, 2), Position(8, 4), 2, 1)
 task4 = Task(Position(6, 4), Position(4, 6), 3, 3.5)
-task5 = Task(Position(1, 4), Position(7, 3), 1)
+task5 = Task(Position(1, 4), Position(7, 3), 1, 1)
+cp1 = ChargingPoint(Position(2,3))
+cp2 = ChargingPoint(Position(4,4))
 
 uavs = np.array((uav1,uav2))
 tasks = np.array([task1, task2, task3, task4, task5])
+cps = np.array([cp1, cp2])
 
-run = GeneticAlgo(uavs, tasks)
+run = GeneticAlgo(uavs, tasks, cps)
 print(run.getSolution())
 run.graphSolution()
