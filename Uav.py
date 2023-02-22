@@ -87,24 +87,18 @@ class Uav:
             self.recharge()
     
     def taskEnergy(self, task: Task):
-        currentTraject = Traject(self.position, self.currentTask)
-        if False: #np.random.rand() < 0.5:
-            if currentTraject in self.trajectsEnergy:
-                trajectsEnergisNP = np.array(self.trajectsEnergy)
-                trajectEnergy = self.trajectsEnergy[np.where(trajectsEnergisNP == currentTraject)[0][0]].getEnergy()
-                if trajectEnergy != 0:
-                    self.taskEnergyOptimizer(task)
-                    return trajectEnergy
+        currentTraject = Traject(self.position, self.currentTask, self.currentBatteryCapacity)
+        if currentTraject in self.trajectsEnergy:
+            previousTraject = self.trajectsEnergy[np.where(np.array(self.trajectsEnergy) == currentTraject)[0][0]]
+            return previousTraject.getEnergy()
         
-        trajectEnergy = self.taskEnergyOptimizer(task)
-        currentTraject.setEnergy(trajectEnergy)
+        currentTrajectEnergy = self.taskEnergyOptimizer(task)
+        currentTraject.setEnergy(currentTrajectEnergy)
         currentTraject.setTime(self.currentTrajectTime)
         currentTraject.setVelocity(self.currentTrajectVelocity)
-        if currentTraject in self.trajectsEnergy:
-            self.trajectsEnergy[np.where(np.array(self.trajectsEnergy) == currentTraject)[0][0]] = currentTraject
-        else:
-            self.trajectsEnergy.append(currentTraject)
-        return trajectEnergy
+        self.trajectsEnergy.append(currentTraject)
+        
+        return currentTrajectEnergy
     
     def taskEnergyOptimizer(self, task: Task):
         energy = 0
@@ -215,3 +209,7 @@ class Uav:
         l2 = self.currentTask.getTrajectDistance()
 
         return self.getTotalTimeSpentTillNow() + (l1 + l2)/ v
+    
+    def printTrajectEnergies(self):
+        for tr in self.trajectsEnergy:
+            print(tr)
