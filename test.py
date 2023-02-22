@@ -1,6 +1,12 @@
 import numpy as np
-import scipy.optimize as sp
-import math
+import time
+# import scipy.optimize as sp
+# import math
+from Task import Task
+from Position import Position
+from ChargingPoint import ChargingPoint
+from Uav import Uav
+from GeneticAlgo import GeneticAlgo
 
 # array1 = np.array([1, 2, 3])
 # array2 = np.array([4, 5, 6, 7])
@@ -26,46 +32,106 @@ import math
 # c = np.append(a, b)
 # print(np.argmin(c))
 
+# uav1 = Uav(1.3*10**6, 4, 3, Position(0, 0))
+# uav2 = Uav(0.9*10**6, 2, 1.5, Position(0, 0))
+# task1 = Task(Position(1000, 1000), Position(1000, 3000), 5, 1)
+# task2 = Task(Position(3000, 7000), Position(2000, 3000), 3, 2)
+# task3 = Task(Position(8000, 2000), Position(8000, 4000), 2, 1)
+# task4 = Task(Position(6000, 4000), Position(4000, 6000), 3, 3)
+# task5 = Task(Position(1000, 4000), Position(7000, 3000), 1, 1)
+# cp1 = ChargingPoint(Position(2000,3000))
+# cp2 = ChargingPoint(Position(4000,4000))
 
-eta = 1
-cd = 0.3
-rho = 1.0125
-Ad = 0.1
-Ar = 0.1   # total rotor disk area
-g = 9.81
-Fm = 1  # UAV figure of merit
-BLt = 0.3
-mass = 2
-class Test:
-    def energyConsumption(self, v):
-        # TODO add the distance from the current drone position and the task start position
-        l1 = 1.4142135623730951
-        l2 = 2
+# uavs = np.array((uav1,uav2))
+# tasks = np.array([task1, task2, task3, task4, task5])
+# cps = np.array([cp1, cp2])
 
-        mp = 0  # mass package to retrive from task TODO
+# ga = GeneticAlgo(uavs, tasks, cps)
 
-        A = cd * rho * Ad * (l1 + l2) * v**2
-        B = (l2 * math.sqrt(((mass + mp) * g)**3))/(v * Fm * math.sqrt(2 *rho * Ar))
-        C = (l1 * math.sqrt((mass * g)**3))/(v * Fm * math.sqrt(2 * rho * Ar))
+# print(ga.addChargingTasks(np.array([0, 3, 2, 1]), 0))
 
-        return 1/eta * (A + B + C)
+uav0 = Uav(1.2*10**6, 4, 3, Position(0, 0))
+uav1 = Uav(0.9*10**6, 2, 1.5, Position(0, 0))
+task0 = Task(Position(1000, 1000), Position(1000, 3000), 5, 1)
+task1 = Task(Position(3000, 7000), Position(2000, 3000), 3, 2)
+task2 = Task(Position(8000, 2000), Position(8000, 4000), 2, 1)
+task3 = Task(Position(6000, 4000), Position(4000, 6000), 3, 3)
+task4 = Task(Position(1000, 4000), Position(7000, 3000), 1, 1)
+cp0 = ChargingPoint(Position(2000,5000))
+cp1 = ChargingPoint(Position(4000,4000))
 
-    def optimize(self):
-        d = 1.4142135623730951
-        C1 = sp.Bounds(0, 20)
-        C2 = sp.NonlinearConstraint(self.energyConsumption, lb=1500, ub=5000)
-        f = lambda x : d/x
-        v = sp.minimize(f, (1,), bounds=(C1), constraints=(C2))
+# Energy consumption test
+# 31 420
+print("uav 0 can take tasks 31? " + str(uav0.canTakeTasks([task3, task1]))) # false
+print("uav 1 can take tasks 042? " + str(uav1.canTakeTasks([task0, task4, task2]))) # true
+print("uav 1 can take tasks 420? " + str(uav1.canTakeTasks([task4, task2, task0]))) # false
 
-        print(v)
-        print(self.energyConsumption(3.21716838))
-        print(self.energyConsumption(1))
-        print(self.energyConsumption(2))
-        print(self.energyConsumption(3.21716838))
-        print(self.energyConsumption(4))
-        print(self.energyConsumption(5))
+print("uav 0 take 361")
+uav0.reset()
+print(uav0.getTotalEnergyUsed())
+uav0.takeTask(task3)
+print(uav0.getTotalEnergyUsed())
+uav0.takeTask(cp1)
+print(uav0.getTotalEnergyUsed())
+uav0.takeTask(task1)
+print(uav0.getTotalEnergyUsed())
+print("uav 1 take 042")
+uav1.reset()
+print(uav1.getTotalEnergyUsed())
+uav1.takeTask(task0)
+print(uav1.getTotalEnergyUsed())
+uav1.takeTask(task4)
+print(uav1.getTotalEnergyUsed())
+uav1.takeTask(task2)
+print(uav1.getTotalEnergyUsed())
+uav1.takeTask(cp1)
+print(uav1.getTotalEnergyUsed())
 
-obj = Test()
+uavs = [uav0,uav1]
+tasks = [task0, task1, task2, task3, task4]
+cps = [cp0, cp1]
 
-obj.optimize()
+run = GeneticAlgo(uavs, tasks, cps)
+# print("Time for add charging tasks")
+# # start = time.process_time()
+# print(run.addChargingTasksPerDrone([3, 1], 0))
+# # print("time: " + str(time.process_time() - start))
+# print(run.addChargingTasksPerDrone([4, 2, 0], 1))
+# print("uav 1 can take tasks 042? " + str(uav1.canTakeTasks([task0, task4, task2])))
+print(run.addChargingTasksPerDrone([0, 4, 2], 1))
 
+print("Uav 1 take task 26 from 6 position")
+uav1.reset()
+uav1.position = Position(4,4)
+print(uav1.getTotalEnergyUsed())
+uav1.takeTask(task2)
+print(uav1.getTotalEnergyUsed())
+uav1.takeTask(cp1)
+print(uav1.getTotalEnergyUsed())
+
+print("uav 1 can take tasks 132? " + str(uav1.canTakeTasks([task1, task3, task2]))) # false
+print("uav 1 can take tasks 15362? " + str(uav1.canTakeTasks([task1, cp0, task3, cp1, task2]))) # true
+uav1.reset()
+uav1.position = Position(4,4)
+print("uav 1 can take tasks 26 from position(4,4)? " + str(uav1.canTakeTasks([task2, cp1]))) # true
+print(run.addChargingTasksPerDrone([1, 3, 2], 0))
+
+uav1.reset()
+print("uav 1 can take tasks 402)? " + str(uav1.canTakeTasks([task4, task0, task2]))) # false
+print(run.addChargingTasksPerDrone([4, 0, 2], 1))
+uav1.reset()
+print("uav 1 can take tasks 4602)? " + str(uav1.canTakeTasks([task4, cp1, task0, task2]))) # false
+
+print("uav 1 can take tasks 204)? " + str(uav1.canTakeTasks([task2, task0, task4]))) # false
+print(run.addChargingTasksPerDrone([2, 0, 4], 1))
+uav1.reset()
+print("uav 1 can take tasks 024)? " + str(uav1.canTakeTasks([task0, task2, task4]))) # false
+print(run.addChargingTasksPerDrone([0, 2, 4], 1))
+
+# print("Time for taskEnergy")
+# start = time.process_time()
+# uav0.taskEnergyOptimizer(task1)
+# print(time.process_time() - start)
+# start = time.process_time()
+# uav0.taskEnergyOptimizer(task1)
+# print(time.process_time() - start)

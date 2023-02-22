@@ -3,10 +3,20 @@ from typing import List
 import numpy as np
 
 class Individual:
-    def __init__(self, chromosome: Chromosome, evaluation: float) -> None:
+    def __init__(self, chromosome: Chromosome, evaluation: float = 0) -> None:
         self.chromosome = chromosome
         self.evaluation = evaluation
     
+    def __str__(self) -> str:
+        details = ''
+        details += f'chromosome: {self.chromosome}\t'
+        details += f'evaluation: {self.evaluation}'
+        return details
+    
+    @classmethod
+    def fromIndividual(cls, individual):
+        return cls(chromosome = individual.getChromosome(), evaluation = individual.getEvaluation())
+
     def getChromosome(self):
         return self.chromosome
 
@@ -42,3 +52,6 @@ class Individual:
             uavsMasses[uavNumber] = self.uavs[uavNumber].getMass()
         
         return uavsMasses
+    
+    def toString(self):
+        print("Tasks per uav:" + str(self.getChromosome().getTasksPerUav()) + ", Evaluation: " + str(self.evaluation))

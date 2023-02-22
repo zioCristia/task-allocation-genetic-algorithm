@@ -1,4 +1,5 @@
 import math
+import time
 from random import randint
 from re import I
 import numpy as np
@@ -11,48 +12,59 @@ from Uav import Uav
 from Position import Position
 from typing import List
 from ChargingPoint import ChargingPoint
+from AlgoConstants import AlgoConstants as const
 
 """
 VINCOLI:
 * max payload per drone
 * delivery window
+* scelta degli individui fatta sul consumo energetico e non più sul tempo di consegna (o t*m)
 * preferire drone che consuma meno
 * preferire ripartizione che consuma meno (fitting function t*m)
 
 TO ADD:
 - iteration stop if last best evaluation similar current evaluation
-- add use of respectDeliveryWindow()
+    - miglioramento nelle ultime 10 iterazioni inferiore di epsilon esci
+- cambiare logica minimizzazione energia
+- verificare vincoli soddisfatti
+- arriviamo un minimo globale? 50 test dove plotti i costi per il numero di iterazioni
+- confronto con le aste
+- verificare che 
+- add use of respectDeliveryWindow() (or better respectConstraint) in the moment of a new individual creation or mutation,
+    in this way we optimize the algo and avoid two loops. If newChromosome not respectConstraint we eliminate it.
 
-- dopo deliveryWindowEvaluation, facciamo il controllo per ogni drone sulla batteria consumata e aggiungo task
-    di ricarica se necessarie
-- prossima task è fatta se basta la batteria, sennò prima faccio la ricarica
-- velocità scelta per minimizzare l'eq1, in base a quella troviamo il tempo da dare alla fitting function
-- aggiungo nel task order la task di ricarica stando attenti ad aggiornare le cut positions
-- le task di ricarica sono per un primo momento nel punto 0 ma poi ne aggiungiamo diverse e mettiamo una ricerca alla migliore
-- alla fine faccio di nuovo un controllo sul delivery window
+- come faccio se una task non è possibile eseguirla neanche con la batteria piena?
+- verificare quando utilizzare allTask e quando mantenere task
+- far visualizzare le task di ricarica sulla mappa con un simbolo
+- dopo l'ultima task non aggiungo una ricarica
+- vado nella task di ricarica più vicina ma non sempre è quella più conveniente con quella successiva
 """
 
 class GeneticAlgo:
     # minimum maximum time weight factor
-    ALPHA = 0.5
+    ALPHA = const.ALPHA
     # minimum consumption weight factor (alpha + beta = 1)
-    BETA = 0.5
+    BETA = const.BETA
     # number of population individuals (paire number at least > 6*BEST_TAKEN)
-    NP = 60
+    NP = const.NP
     # number of the fittest chromosomes taken without the roulette wheel selection
-    BEST_TAKEN = 3
+    BEST_TAKEN = const.BEST_TAKEN
     # crossover probability
-    PC = 0.3
+    PC = const.PC
     # mutation probability
-    PM = 0.3
+    PM = const.PM
     # max iterations for genetic algo
-    MAX_ITER = 300
+    MAX_ITER = const.MAX_ITER
     # number of the offspring individuals for mutation porpousos
-    GROUP_MUTATION_NUMBER = 8
+    GROUP_MUTATION_NUMBER = const.GROUP_MUTATION_NUMBER
 
     population = np.empty((NP), dtype=Individual)
     oppositePopulation = np.empty((NP), dtype=Individual)
-    solution = Individual(Chromosome(0,0), 0)
+    solution = Individual(Chromosome([0],[0]), 0)
+    bestPopulationEvaluations = []
+    solutionEvaluations = []
+    solutionEvaluationsDifferences = []
+    iterationNumber = 0
 
     def __init__(self, uavs: List[Uav], tasks: List[Task], chargingPoints: List[ChargingPoint]): #np.ndarray for typing np array
         self.uavs = uavs
@@ -60,10 +72,13 @@ class GeneticAlgo:
         self.chargingPoints = chargingPoints
         self.allTasks = np.append(tasks, chargingPoints)
         self.NU = len(uavs)
+        const.NU = self.NU
         self.NT = len(tasks)
+        const.NT = self.NT
         self.NCP = len(chargingPoints)
+        const.NCP = self.NCP
         self.uavsTasksEnergy = np.empty(self.NU)
-        self.run()
+        # self.run()
 
     def getSolution(self):
         return self.solution
@@ -73,10 +88,10 @@ class GeneticAlgo:
     
     def individualCreation(self) -> Individual:
         chromosome = self.chromosomeCreation()
-        while not self.respectDeliveryWindow(chromosome):
+        while not self.respectConstraints(chromosome):  # TODO change to Chromosome.respectConstraints
             chromosome = self.chromosomeCreation()
         
-        return Individual(chromosome, self.individualEvaluation(chromosome))
+        return Individual(chromosome)
 
     def chromosomeCreation(self) -> Chromosome:
         tasksOrder = np.empty(0)
@@ -87,50 +102,139 @@ class GeneticAlgo:
         for u in range(self.NU):
             uavTask = np.where(uavTaskSelection == u)[0]
             np.random.shuffle(uavTask)
-            uavTask = self.addChargingTasks(uavTask, u)
+            # uavTask = self.addChargingTasksPerDrone(uavTask, u)
             tasksOrder = np.concatenate((tasksOrder, uavTask))
             cutPositions[u] = len(uavTask) + offset
             offset = len(tasksOrder)
         
         return Chromosome(tasksOrder, cutPositions)
 
-    def addChargingTasks(self, taskOrder, uavNumber):
-        uavs[uavNumber].reset()
+    def addChargingTasksAndEvaluationPopulations(self):
+        individualsIndexToDelate = []
+        for i in range(len(self.population)):
+            chromosomeWithCT = self.addChargingTasks(self.population[i].getChromosome())
+            if chromosomeWithCT == 0:
+                individualsIndexToDelate.append(i)
+            self.population[i] = Individual(chromosomeWithCT, self.individualEvaluation(chromosomeWithCT))
+            self.population = np.delete(self.population, individualsIndexToDelate)
+
+        individualsIndexToDelate = []
+        for i in range(len(self.oppositePopulation)):
+            chromosomeWithCT = self.addChargingTasks(self.oppositePopulation[i].getChromosome())
+            if chromosomeWithCT == 0:
+                individualsIndexToDelate.append(i)
+            self.oppositePopulation[i] = Individual(chromosomeWithCT, self.individualEvaluation(chromosomeWithCT))
+            self.oppositePopulation = np.delete(self.oppositePopulation, individualsIndexToDelate)
+    
+    def addChargingTasksPerDrone(self, taskOrder: List[int], uavNumber: int) -> List[int]:
+        self.uavs[uavNumber].reset()
+        uav = self.uavs[uavNumber]
 
         if len(taskOrder) == 0: 
             return taskOrder
 
-        uav = uavs[uavNumber]
+        newTaskOrder = []
+        taskIndex = 0
+        while taskIndex < len(taskOrder):
+            if not uav.canTakeTasks(self.taskAndRechargeTask(taskOrder[taskIndex])):
+                # we take the charging task
+                if taskIndex == 0 or uav.isFull():
+                    print("task " + str(taskOrder[taskIndex]) + " cannot be taken by uav " + str(uavNumber) + " from position: " + str(self.uavs[uavNumber].getPosition()) + ". Energy not available!")
+                    uav.canTakeTasks(self.taskAndRechargeTask(taskOrder[taskIndex]))
+                    # uav.taskEnergy(self.tasks[int(taskOrder[0])])
+                    return []
+                currentCp = self.optimumChargingPoint(uav.getPosition())
+                try:
+                    if not uav.canTakeTask(self.chargingPoints[currentCp]):
+                        uav.canTakeTask(self.chargingPoints[currentCp])
+                        print("")
+                    uav.takeTask(self.chargingPoints[currentCp])
+                    newTaskOrder.append(currentCp + self.NT)
+                except:
+                    print("error with task order: " + str(taskOrder) + " at task: " + str(taskIndex) + ", taking cp task: " + str(currentCp))
+                    return []
+            else:
+                uav.takeTask(self.tasks[int(taskOrder[taskIndex])])
+                newTaskOrder.append(int(taskOrder[taskIndex]))
+                taskIndex += 1
 
-        uav.takeTask(tasks[taskOrder[0]])
+        self.uavs[uavNumber] = uav
+        return newTaskOrder
+
+    def addChargingTasksPerDroneOld(self, taskOrder, uavNumber) -> List[int]:
+        # deprecated
+        # TODO optimize this method to calculate only one time the opt energy for the dron, then check if was the same uav
+        # and use same previous task and just take the previous energy calculation
+        #print(taskOrder)
+        self.uavs[uavNumber].reset()
+
+        if len(taskOrder) == 0: 
+            return taskOrder
+
+        uav = self.uavs[uavNumber]
+
+        if not uav.canTakeTasks(self.taskAndRechargeTask(0)):
+            print("task " + str(taskOrder[0]) + " cannot be taken by uav " + str(uavNumber) + ". Energy not available!")
+            return np.empty(0)
+
+        uav.takeTask(self.tasks[int(taskOrder[0])])
+
+        newTaskOrder = taskOrder
+        offset = 0
         for t in range(1, len(taskOrder) - 1):
             tempUav = uav
-            cp = self.optimumChargingPoint(tasks[t+1])
 
-            if not tempUav.canTakeTasks(np.array([tasks[t], self.chargingPoints[cp]])):
+            if not tempUav.canTakeTasks(self.taskAndRechargeTask(t)):
                 # the drone can't complete the task t and charge after, we go to a charging point first
-                uav.takeTask(self.chargingPoints[cp])
-                taskOrder = np.insert(taskOrder, t, cp + self.NT)   # bc we add the charging task at the end in all tasks array
-                t+=1
+                currentCp = self.optimumChargingPoint(self.tasks[t].getEndPosition())
+                uav.takeTask(self.chargingPoints[currentCp])
+                if not uav.canTakeTask(self.tasks[t]):
+                    print("task " + str(taskOrder[0]) + " cannot be taken by uav " + str(uavNumber) + ". Energy not available!")
+                    return np.empty(0)
 
+                uav.takeTask(self.tasks[t])
+                newTaskOrder = np.insert(newTaskOrder, t + offset, currentCp + self.NT)   # bc we add the charging task at the end in all tasks array
+                offset += 1
             else:
                 tempUav.takeTask(self.tasks[t])
                 uav = tempUav
 
-        uav.takeTask(tasks[taskOrder[len(taskOrder)-1]])
-        uavs[uavNumber] = uav
+        if len(taskOrder) > 1:
+            if not uav.canTakeTask(self.tasks[int(taskOrder[len(taskOrder)-1])]):
+                currentCp = self.optimumChargingPoint(uav.getPosition())
+                uav.takeTask(self.chargingPoints[currentCp])
+                newTaskOrder = np.insert(newTaskOrder, len(newTaskOrder)-1, currentCp + self.NT)
+            
+            uav.takeTask(self.tasks[int(taskOrder[len(taskOrder)-1])])
+            self.uavs[uavNumber] = uav
 
-        return taskOrder
+        return newTaskOrder
     
-    def optimumChargingPoint(self, task: Task, nextTask: Task = 0):
-        distances = utility.tasksDistances(task.getEndPosition(), self.chargingPoints)
+    def addChargingTasks(self, chromosome: Chromosome):
+        tasksOrder = []
+
+        for u in range(self.NU):
+            droneTask = chromosome.getTasksPerUav()[u]
+            droneTasksWithCP = self.addChargingTasksPerDrone(droneTask, u)
+            if droneTasksWithCP == []:
+                return 0
+            tasksOrder.append(droneTasksWithCP)
+
+        return Chromosome.fromTasksPerUav(tasksOrder)
+
+    def optimumChargingPoint(self, position: Position, nextTask: Task = 0):
+        # TOFIX verify it works
+        distances = utility.tasksDistances(position, self.chargingPoints)
 
         if nextTask != 0:
             # TODO: check only the first elements of distances
             for cp in range(self.NCP):
-                distances[cp] = utility.taskDistance(task.getEndPosition(), self.chargingPoints[cp]) + utility.taskDistance(self.chargingPoints[cp], nextTask.getEndPosition())
+                distances[cp] = utility.taskDistance(position, self.chargingPoints[cp]) + utility.taskDistance(self.chargingPoints[cp].getStartPosition(), nextTask.getEndPosition())
         
         return np.argmin(distances)
+
+    def taskAndRechargeTask(self, taskNumber: int):
+        return [self.tasks[int(taskNumber)], self.chargingPoints[self.optimumChargingPoint(self.tasks[int(taskNumber)].getEndPosition())]]
 
     def taskUavSelection(self):
         uavSelection = np.empty(self.NT)
@@ -148,20 +252,20 @@ class GeneticAlgo:
         for t in range(self.NT):
             uavsMassSum = 0
             for u in np.where(tasksUavsMatrix[t] == 1)[0]:
-                uavsMassSum += 1/uavs[u].getMass()
+                uavsMassSum += 1/self.uavs[u].getMass()
             
             for u in range(self.NU):
-                tasksUavsMatrix[t][u] *= (1/uavs[u].getMass())/uavsMassSum
+                tasksUavsMatrix[t][u] *= (1/self.uavs[u].getMass())/uavsMassSum
         
         return tasksUavsMatrix
 
     def maxPayloadMatrix(self):
-        # TODO: add function to control all the task can be performed (min(sum(righe))>0)
+        # TODO: add function to control that all the task can be performed (min(sum(righe))>0)
         maxPayload = np.zeros((self.NT, self.NU))
 
         for t in range(self.NT):
             for u in range(self.NU):
-                if self.tasks[t].getPackageMass() < self.uavs[u].getMaxPayloadMass():
+                if self.tasks[t].getPackageMass() <= self.uavs[u].getMaxPayloadMass():
                     maxPayload[t][u] = 1
         
         return maxPayload
@@ -184,27 +288,32 @@ class GeneticAlgo:
         return cutPosition
 
     def oppositeIndividualCreation(self, chromosome: Chromosome) -> Individual:
-        oppositeTasks = np.empty((self.NT))
-        for t in range(len(chromosome.getTasksOrder())): # or len()
-            oppositeTasks[t] = self.NT - chromosome.getTasksOrder()[t] - 1
-        
-        chromosome = Chromosome(oppositeTasks, chromosome.getCutPositions())
+        tasksOrder = chromosome.getTasksOrder()
+        oppositeTasksOrder = np.empty((self.NT))
 
-        return Individual(chromosome, self.individualEvaluation(chromosome))
+        index = 0
+        for t in tasksOrder:
+            if t < self.NT:
+                oppositeTasksOrder[index] = self.NT - t - 1
+                index += 1
+        
+        chromosome = Chromosome(oppositeTasksOrder, chromosome.getCutPositions())
+        return Individual(chromosome)
 
     def individualEvaluation(self, chromosome: Chromosome) -> float:
         for u in range(self.NU):
-            self.uavsTasksEnergy[u] = uavs[u].getTotalEnergyUsed()
+            self.uavsTasksEnergy[u] = self.uavs[u].getTotalEnergyUsed()
 
         #return self.distanceMassObjectiveFunction(self.getUavsDistances(chromosome), self.getUavsMasses(chromosome))
         # energy optimization
         return self.energyObjectiveFunction()
     
     def respectConstraints(self, chromosome: Chromosome) -> bool:
-        # TODO: add here the other constraints (payload)
-        return self.respectDeliveryWindow(chromosome)
+        # TODO: add here the other constraints (payload), maybe better use directly methods on Chromosome
+        return self.respectDeliveryWindow(chromosome) and self.respectMaxPayload(chromosome)
 
     def respectDeliveryWindow(self, chromosome: Chromosome) -> bool:
+        # TODO use the Chromosome.respectDeliveryWindow, not this method
         offset = 0
         lastOffset = 0
         currentDrone = 0
@@ -214,12 +323,21 @@ class GeneticAlgo:
                 currentDrone += 1
             
             offset += 1
-            if (tasks[int(chromosome.getTasksOrder()[t])].getMaxDeliveryWindow() < t - lastOffset):
+            currentTask = self.allTasks[int(chromosome.getTasksOrder()[t])]
+            if not currentTask.isChargingPoint() and currentTask.getMaxDeliveryWindow() < t - lastOffset:
                 return False
         
         return True
 
+    def respectMaxPayload(self, chromosome: Chromosome) -> bool:
+        for u in range(self.NU):
+            for t in chromosome.getTasksPerUav()[u]:
+                if self.allTasks[int(t)].getPackageMass() > self.uavs[u].getMaxPayloadMass():
+                    return False
+        return True
+
     def getUavsDistances(self, chromosome: Chromosome) -> List[float]:
+        # DEPRECATED: check before
         uavsDistances = np.empty((len(chromosome.getCutPositions())))
 
         lastCuttingPosition = 0
@@ -238,6 +356,7 @@ class GeneticAlgo:
         return uavsMasses
 
     def totalTasksDistance(self, uavIndex: int, tasksIndexes: List[int]) -> float:
+        # DEPRECATED: check before
         distance = 0
         lastUavPosition = self.uavs[uavIndex].getPosition()
 
@@ -246,7 +365,7 @@ class GeneticAlgo:
             distance += (self.tasks[t].getTrajectDistance() + utility.distance(lastUavPosition, self.tasks[t].getStartPosition()))
             lastUavPosition = self.tasks[t].getEndPosition()
         
-        distance += utility.distance(lastUavPosition, uavs[uavIndex].getPosition())
+        distance += utility.distance(lastUavPosition, self.uavs[uavIndex].getPosition())
         return distance
 
     def distanceMassObjectiveFunction(self, distancesUav: List[float], massesUav: List[float]):
@@ -259,42 +378,76 @@ class GeneticAlgo:
         for i in range(self.NP):
             self.population[i] = self.individualCreation()
 
-    def oppositePopulationCreation(self):
-        self.oppositePopulation = np.empty(self.NP, dtype=Individual)
-        for i in range(self.NP):
-            self.oppositePopulation[i] = self.oppositeIndividualCreation(self.population[i].getChromosome())
+    def populationFillsWithRandomIndividuals(self):
+        # add new random individuals to the population till we reach the max number of individuals
+        for i in range(len(self.population), self.NP):
+            self.population = np.append(self.population, self.individualCreation())
 
-    def deliveryWindowPopulationSelection(self):
+    def oppositePopulationCreation(self):
+        self.oppositePopulation = []
+
+        for individual in self.population:
+            oppositeIndividual = self.oppositeIndividualCreation(individual.getChromosome())
+            self.oppositePopulation.append(oppositeIndividual)
+
+    def constraintsPopulationsSelection(self):
         selectedPopulation = np.empty(0)
         selectedOppositePopulation = np.empty(0)
 
-        for i in range(self.NP):
-            if self.respectDeliveryWindow(self.population[i].getChromosome()):
+        for i in range(len(self.population)):
+            if self.respectConstraints(self.population[i].getChromosome()):
                 selectedPopulation = np.append(selectedPopulation, self.population[i])
 
-            if self.respectDeliveryWindow(self.oppositePopulation[i].getChromosome()):
+        for i in range(len(self.oppositePopulation)):
+            if self.respectConstraints(self.oppositePopulation[i].getChromosome()):
                 selectedOppositePopulation = np.append(selectedOppositePopulation, self.oppositePopulation[i])
         
         self.population = selectedPopulation
         self.oppositePopulation = selectedOppositePopulation
 
     def newPopulationSelection(self):
+        (populationIndividualsNumber, oppositePopulationIndividualsNumber) = self.populationsNewSize()
+        
+        # self.population = np.concatenate((self.rouletteWheelSelection(self.population, populationIndividualsNumber), 
+        #                                   self.rouletteWheelSelection(self.oppositePopulation, oppositePopulationIndividualsNumber)))
+        
+        if len(self.population) > self.BEST_TAKEN:
+            populationLeft = self.numberPopulationLeft(populationIndividualsNumber)
+            self.population = np.concatenate((self.takeBestN(self.population, self.BEST_TAKEN),
+                                self.rouletteWheelSelection(self.population, populationLeft)))
+        else:
+            self.population = self.rouletteWheelSelection(self.population, populationIndividualsNumber)
+        
+        if len(self.oppositePopulation) > self.BEST_TAKEN:
+            oppositePopulationLeft = self.numberPopulationLeft(oppositePopulationIndividualsNumber)
+            self.population = np.concatenate((self.takeBestN(self.oppositePopulation, self.BEST_TAKEN),
+                                self.rouletteWheelSelection(self.oppositePopulation, oppositePopulationLeft)))
+        else:
+            self.population = self.rouletteWheelSelection(self.oppositePopulation, oppositePopulationIndividualsNumber)
+    
+    def newPopulationSelectionOld(self):
+        # deprecated: we don't use anymore Best_Taken
         # we take BEST_TAKEN chromosomes from population and opposite population and put them directly
         # in the output population. The rest is taken by a roulette wheel selection
         (populationIndividualsNumber, oppositePopulationIndividualsNumber) = self.populationsNewSize()
 
-        # self.population = np.concatenate((self.takeBestN(self.population, populationIndividualsNumber),
-        #                                 self.takeBestN(self.oppositePopulation, oppositePopulationIndividualsNumber)))
+        populationLeft = self.numberPopulationLeft(populationIndividualsNumber)
+        oppositePopulationLeft = self.numberPopulationLeft(oppositePopulationIndividualsNumber)
 
         self.population = np.concatenate((self.takeBestN(self.population, self.BEST_TAKEN),
-                                self.rouletteWheelSelection(self.population, populationIndividualsNumber - self.BEST_TAKEN),
+                                self.rouletteWheelSelection(self.population, populationLeft),
                                 self.takeBestN(self.oppositePopulation, self.BEST_TAKEN),
-                                self.rouletteWheelSelection(self.oppositePopulation, oppositePopulationIndividualsNumber - self.BEST_TAKEN)))
+                                self.rouletteWheelSelection(self.oppositePopulation, oppositePopulationLeft)))
 
     def populationsNewSize(self):
         totalIndividuals = self.population.size + self.oppositePopulation.size
-        populationIndividualsNumber = int(self.NP * self.population.size/totalIndividuals)
-        oppositePopulationIndividualsNumber = int(self.NP * self.oppositePopulation.size/totalIndividuals)
+        
+        if self.oppositePopulation.size < self.NP / 2:
+            oppositePopulationIndividualsNumber = self.oppositePopulation.size
+            populationIndividualsNumber = self.NP - oppositePopulationIndividualsNumber
+        else:
+            oppositePopulationIndividualsNumber = int(self.NP * self.oppositePopulation.size/totalIndividuals)
+            populationIndividualsNumber = int(self.NP * self.population.size/totalIndividuals)
 
         if populationIndividualsNumber + oppositePopulationIndividualsNumber < self.NP:
             populationIndividualsNumber += self.NP - (populationIndividualsNumber + oppositePopulationIndividualsNumber)
@@ -302,6 +455,9 @@ class GeneticAlgo:
         return (populationIndividualsNumber, oppositePopulationIndividualsNumber)
 
     def takeBestN(self, population: List[Individual], n: int) -> List[Individual]:
+        if len(population) < n:
+            return population
+
         bestIndividuals = np.empty((n), dtype=Individual)
 
         for i in range(n):
@@ -311,7 +467,10 @@ class GeneticAlgo:
 
         return bestIndividuals
 
-    def rouletteWheelSelection(self, population: List[Individual], n: int):
+    def rouletteWheelSelection(self, population: List[Individual], n: int) -> List[Individual]:
+        if n > len(population):
+            n = len(population)
+
         individualsChosen = np.empty((n), dtype=Individual)
 
         for i in range(n):
@@ -320,6 +479,14 @@ class GeneticAlgo:
             population = np.delete(population, choice, 0)
 
         return individualsChosen
+
+    def numberPopulationLeft(self, populationNumber: int) -> int:
+        populationLeft = populationNumber - self.BEST_TAKEN
+
+        if populationLeft < 0:
+            return 0
+        
+        return populationLeft
 
     def probabilitiesSelection(self, evaluations):
         # create the proportional probabilities which are used for the roulette wheel selection
@@ -347,41 +514,77 @@ class GeneticAlgo:
 
         return evaluations
 
-    def populationCrossover(self):
+    def populationsCrossover(self):
         # per ogni chormosoma in chromosomes, se la probabilità è minore della probabilità di crossover
-        # esegui il crossover tra lui e un altro individuo a caso e poi lo aggiungi nella populazione di output,
+        # esegui il crossover tra lui e un altro individuo a caso e poi lo aggiungi nella popolazione di output,
         # sennò lo metti direttamente nell'output
-        for c in range(self.NP):
+        for c in range(len(self.population)):
             if np.random.rand() < self.PC:
-                chromosomeForCross = np.random.randint(self.NT)
-                while chromosomeForCross == c:
-                    chromosomeForCross = np.random.randint(self.NT)
-                
-                newTaskOrder = self.individualCrossover(np.array(self.population[c].getChromosome().getTasksOrder()),
-                                    self.population[chromosomeForCross].getChromosome().getTasksOrder())
-                self.population[c].getChromosome().setTasksOrder(newTaskOrder)
-                self.population[c].setEvaluation(self.individualEvaluation(self.population[c].getChromosome()))
+                self.individualCrossoverInPopulation(c)
 
-    def individualCrossover(self, chromosomeToCross: List[int], chromosomeForCross):
-        l = np.random.randint(self.NT)
-        r = np.random.randint(self.NT)
-        while (l >= r):
-            l = np.random.randint(self.NT)
-            r = np.random.randint(self.NT)
+        for c in range(len(self.oppositePopulation)):
+            if np.random.rand() < self.PC:
+                self.individualCrossoverInOppositePopulation(c)
 
-        for p in range(l,r):
-            i = np.where(chromosomeToCross == chromosomeForCross[p])
-            # i = chromosomeToCross.index(chromosomeForCross[p])
-            chromosomeToCross[i] = chromosomeToCross[p]
+    def randomChromosomeForCrossDifferentFrom(self, n: int, maxNumber: int) -> int:
+        # TODO: change it when use class Population
+        forCross = np.random.randint(maxNumber)
+        while forCross == n:
+                    forCross = np.random.randint(self.NT)
 
-        chromosomeToCross[l:r] = chromosomeForCross[l:r]
+        return forCross
 
-        return chromosomeToCross
+    def removeRechargingTaskPopulation(self):
+        for i in self.population:
+            rechargingTasksRemovedPerUav = self.removeRechargingTaskPerUav(i.getChromosome().getTasksPerUav())
+            i.setChromosome(Chromosome.fromTasksPerUav(rechargingTasksRemovedPerUav))
+
+    def removeRechargingTaskPerUav(self, tasksOrderPerUav: List):
+        tasksOrderWithoutCTPerUav = []
+
+        for tPerUav in tasksOrderPerUav:
+            tasksOrder = []
+            for t in tPerUav:
+                if t < self.NT:
+                    tasksOrder.append(t)
+            tasksOrderWithoutCTPerUav.append(tasksOrder)
+        
+        return tasksOrderWithoutCTPerUav
+
+    def individualCrossoverInPopulation(self, individualIndex: int):
+        # TODO change this method to be a Population class method
+        # TOFIX check if it works
+        chromosomeForCross = self.randomChromosomeForCrossDifferentFrom(individualIndex, len(self.population))
+        chromosome = self.population[individualIndex].getChromosome()
+        
+        chromosome.crossWith(self.population[chromosomeForCross].getChromosome().getTasksOrder())
+        #self.population[individualIndex] = Individual(chromosome)
+
+    def individualCrossoverInOppositePopulation(self, individualIndex: int):
+        # TODO change this method to be a Population class method
+        # TOFIX check if it works
+        chromosomeForCross = self.randomChromosomeForCrossDifferentFrom(individualIndex, len(self.oppositePopulation))
+        chromosome = self.oppositePopulation[individualIndex].getChromosome()
+        
+        chromosome.crossWith(self.oppositePopulation[chromosomeForCross].getChromosome().getTasksOrder())
+        crossedChromosome = self.addChargingTasks(chromosome)
+        if crossedChromosome != 0:
+            self.oppositePopulation[individualIndex] = Individual(crossedChromosome, self.individualEvaluation(crossedChromosome))
 
     def offspringCreation(self):
-        for i in range(0, self.NP, self.GROUP_MUTATION_NUMBER):
-            if np.random.rand() < self.PM and i+self.GROUP_MUTATION_NUMBER < self.NP:
-                self.population[i:i+self.GROUP_MUTATION_NUMBER] = self.groupMutation(self.population[i:i+self.GROUP_MUTATION_NUMBER])
+        for i in range(0, len(self.population), self.GROUP_MUTATION_NUMBER):
+            if np.random.rand() < self.PM and i + self.GROUP_MUTATION_NUMBER < self.NP:
+                if len(self.population) < self.NP:
+                    self.population = np.append(self.population, self.groupMutation(self.population[i:i+self.GROUP_MUTATION_NUMBER]))
+                else:
+                    self.population[i:i+self.GROUP_MUTATION_NUMBER] = self.groupMutation(self.population[i:i+self.GROUP_MUTATION_NUMBER])
+
+        for i in range(0, len(self.oppositePopulation), self.GROUP_MUTATION_NUMBER):
+            if np.random.rand() < self.PM and i + self.GROUP_MUTATION_NUMBER < self.NP:
+                if len(self.oppositePopulation) < self.NP:
+                    self.oppositePopulation = np.append(self.oppositePopulation, self.groupMutation(self.oppositePopulation[i:i+self.GROUP_MUTATION_NUMBER]))
+                else:
+                    self.oppositePopulation[i:i+self.GROUP_MUTATION_NUMBER] = self.groupMutation(self.oppositePopulation[i:i+self.GROUP_MUTATION_NUMBER])
 
     def groupMutation(self, individuals: List[Individual]) -> List[Individual]:
         bestChromosome = self.takeBestN(individuals, 1)[0].getChromosome()
@@ -394,98 +597,199 @@ class GeneticAlgo:
         bestCutPositions = bestChromosome.getCutPositions()
         mutatedCutPosition = self.randomCutPosition()
 
-        individuals[0] = Individual(bestTasksOrder, bestCutPositions)
-        individuals[1] = Individual(flipTasksOrder, bestCutPositions)
-        individuals[2] = Individual(swapTasksOrder, bestCutPositions)
-        individuals[3] = Individual(slideTasksOrder, bestCutPositions)
+        newIndividuals = []
+        newIndividuals.append(Individual(Chromosome(bestTasksOrder, bestCutPositions)))
+        newIndividuals.append(Individual(Chromosome(flipTasksOrder, bestCutPositions)))
+        newIndividuals.append(Individual(Chromosome(swapTasksOrder, bestCutPositions)))
+        newIndividuals.append(Individual(Chromosome(slideTasksOrder, bestCutPositions)))
 
-        individuals[4] = Individual(bestTasksOrder, mutatedCutPosition)
-        individuals[5] = Individual(flipTasksOrder, mutatedCutPosition)
-        individuals[6] = Individual(swapTasksOrder, mutatedCutPosition)
-        individuals[7] = Individual(slideTasksOrder, mutatedCutPosition)
+        newIndividuals.append(Individual(Chromosome(bestTasksOrder, mutatedCutPosition)))
+        newIndividuals.append(Individual(Chromosome(flipTasksOrder, mutatedCutPosition)))
+        newIndividuals.append(Individual(Chromosome(swapTasksOrder, mutatedCutPosition)))
+        newIndividuals.append(Individual(Chromosome(slideTasksOrder, mutatedCutPosition)))
 
         return individuals
 
     def flipMutation(self, tasksOrder: List[int]) -> List[int]:
-        # TODO implement as in the paper
         position1 = np.random.randint(self.NT)
         position2 = np.random.choice(list(range(int(position1), self.NT)))
-        return 0
 
-    def swapMutation(self, individual: List[int]) -> List[int]:
-        # TODO implement as in the paper
-        return 0
+        newTaskOrder = np.array(tasksOrder)
 
-    def slideMutation(self, individual: List[int]) -> List[int]:
-        # TODO implement as in the paper
-        return 0
+        for t in range(position1, position2+1):
+            newTaskOrder[t] = tasksOrder[position2]
+            position2 -= 1
+
+        return newTaskOrder
+
+    def swapMutation(self, tasksOrder: List[int]) -> List[int]:
+        position1 = np.random.randint(self.NT)
+        position2 = np.random.choice(list(range(int(position1), self.NT)))
+
+        tempTask = tasksOrder[position1]
+        tasksOrder[position1] = tasksOrder[position2]
+        tasksOrder[position2] = tempTask
+        return tasksOrder
+
+    def slideMutation(self, tasksOrder: List[int]) -> List[int]:
+        position1 = np.random.randint(self.NT)
+        position2 = np.random.choice(list(range(int(position1), self.NT)))
+
+        tempTask = tasksOrder[position1]
+
+        for t in range(position1, position2):
+            tasksOrder[t] = tasksOrder[t+1]
+        tasksOrder[position2] = tempTask
+
+        return tasksOrder
+    
+    def timeToStop(self) -> bool:
+        if self.iterationNumber < const.LAST_ITER_CHECKED+1:
+            return False
+        
+        if self.iterationNumber == const.MAX_ITER:
+            return True
+        
+        for diff in self.solutionEvaluationsDifferences[-const.LAST_ITER_CHECKED:]:
+            if diff < 0 and diff > const.DELTA_TOLERANCE:
+                return False
+            
+        return True
+
+    def saveBestPopulationEvaluation(self):
+        self.bestPopulationEvaluations.append(self.takeBestPopulationEvaluation())
+    
+    def saveSolutionEvaluation(self):
+        self.solutionEvaluations.append(self.solution.getEvaluation())
+        if self.iterationNumber > 0:
+            self.solutionEvaluationsDifferences.append(abs(self.solutionEvaluations[-1] - self.solutionEvaluations[-2]))
+
+    def takeBestPopulationEvaluation(self) -> float:
+        return self.takeBestN(self.population, 1)[0].getEvaluation()
+
+    def reset(self):
+        self.population = np.empty((const.NP), dtype=Individual)
+        self.oppositePopulation = np.empty((const.NP), dtype=Individual)
+        self.solution = Individual(Chromosome([0],[0]), 0)
+        self.bestPopulationEvaluations = []
+        self.solutionEvaluations = []
+        self.solutionEvaluationsDifferences = []
+        self.iterationNumber = 0
+        self.uavsTasksEnergy = np.empty(self.NU)
 
     def run(self):
+        self.reset()
         self.initialPopulationCreation()
 
-        print("\nBest starting evaluation")
-        print(self.takeBestN(self.population, 1)[0].getEvaluation())
+        while not self.timeToStop():
+            print("Iteration: " + str(self.iterationNumber))
+            start = time.process_time()
 
-        for i in range(self.MAX_ITER):
+            self.populationFillsWithRandomIndividuals()
+
             self.oppositePopulationCreation()
-            self.deliveryWindowPopulationSelection()
-            self.newPopulationSelection()
-            self.populationCrossover()
-            # TODO: add mutation
-            # offspringCreation(initialPopul)
+            # oppTime = time.process_time() - start
+            # print("opposite population time: " + str(oppTime))
 
-        self.deliveryWindowPopulationSelection()
-        self.solution = self.takeBestN(self.population, 1)[0]
-        
-        print("\nBest ending evaluation")
-        print(self.solution.getEvaluation())
-        print("Best chromosomes")
-        print(self.solution.getChromosome().getTasksOrder())
-        print(self.solution.getChromosome().getCutPositions())
-    
+            # oppTime = time.process_time()
+            self.populationsCrossover()
+            # crossTime = time.process_time() - oppTime
+            # print("population crossover time: " + str(crossTime))
+
+            # crossTime = time.process_time()
+            self.offspringCreation()
+            # offSpringTime = time.process_time() - crossTime
+            # print("population offspring time: " + str(offSpringTime))
+
+            # offSpringTime = time.process_time()
+            self.constraintsPopulationsSelection()
+            # constrTime = time.process_time() - offSpringTime
+            # print("population constraint time: " + str(constrTime))
+
+            # constrTime = time.process_time()
+            self.addChargingTasksAndEvaluationPopulations()
+            # chargeTime = time.process_time() - constrTime
+            # print("population charging time: " + str(chargeTime))
+
+            print("Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
+            # chargeTime = time.process_time()
+            self.constraintsPopulationsSelection()
+            # constr2Time = time.process_time() - chargeTime
+            # print("population crossover 2 time: " + str(constr2Time))
+
+            print("Before Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
+            self.newPopulationSelection()
+            print("After Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
+            self.saveBestPopulationEvaluation()
+
+            newBestSolution = self.takeBestN(self.population, 1)[0]
+            print("New best solution:")
+            newBestSolution.toString()
+            if newBestSolution.getEvaluation() < self.solution.getEvaluation() or self.iterationNumber == 0:
+                self.solution = Individual.fromIndividual(newBestSolution)
+            self.saveSolutionEvaluation()
+            print("Solution:")
+            self.solution.toString()
+
+            self.removeRechargingTaskPopulation()
+            print("iteration time: " + str(time.process_time() - start))
+            print("")
+            self.iterationNumber += 1
+
+        self.printSolution()
+        self.graphEvaluations()
+        self.graphSolution()
+
     def getSolution(self):
         return self.solution
 
+    def printSolution(self):
+        print("\nSolution")
+        print("Evaluation: " + str(self.solution.getEvaluation()))
+        n = 0
+        for u in self.solution.getChromosome().getTasksPerUav():
+            print("\tuav " + str(n) + ": tasks: " + str(u))
+            n += 1
+
+    def printPopulationTasksPerUav(self):
+        for i in self.population:
+            print(i)
+
     def graphSolution(self):
         solutionChromosome = self.solution.getChromosome()
+        plt.figure(2)
         plt.plot([0], [0])
-        for t in tasks:
-            plt.plot([t.getStartPosition().getX(), t.getEndPosition().getX()], [t.getStartPosition().getY(), t.getEndPosition().getY()])
-            plt.plot([t.getStartPosition().getX()], [t.getStartPosition().getY()], 'o', label='Task start position')
-            plt.plot([t.getEndPosition().getX()], [t.getEndPosition().getY()], '^', label='Task end position')
+        # startPositions = np.empty(self.NT, 2)
+        # endPositions = np.empty(self.NT, 2)
+        # chargingPoints = np.empty(self.NT, 2)
+        u = 0
+        for t in self.tasks:
+            # startPosition[i] = [t.getStartPosition().getX(), t.getStartPosition().getY()]
+            # endPosition[i] = [t.getEndPosition().getX(), t.getEndPosition().getY()]
+            plt.plot([t.getStartPosition().getX()], [t.getStartPosition().getY()], "^") # , label='Start position')
+            plt.plot([t.getEndPosition().getX()], [t.getEndPosition().getY()], "v") # , label='End position')
+            plt.plot([t.getStartPosition().getX(), t.getEndPosition().getX()], [t.getStartPosition().getY(), t.getEndPosition().getY()], label='Task ' + str(u))
+            u+=1
 
-        for i in range(self.NU):
-            droneTask = np.empty(0)
+        for cp in self.chargingPoints:
+            plt.plot([cp.getStartPosition().getX()], [cp.getStartPosition().getY()], 'P', label='Charging Point')
 
-            if i == 0 and solutionChromosome.getCutPositions()[0] != 0:
-                droneTask = solutionChromosome.getTasksOrder()[0:int(solutionChromosome.getCutPositions()[0])]
-            else:
-                droneTask = solutionChromosome.getTasksOrder()[int(solutionChromosome.getCutPositions()[i-1]):int(solutionChromosome.getCutPositions()[i])]
-            
+        for u in range(self.NU):
+            droneTask = solutionChromosome.getTasksPerUav()[u]
+
             prevPosition = Position(0,0)
             for t in droneTask:
-                currentTask = tasks[int(t)]
+                currentTask = self.allTasks[int(t)]
                 currentPos = currentTask.getStartPosition()
                 plt.plot([prevPosition.getX(), currentPos.getX()], [prevPosition.getY(), currentPos.getY()], '--')
                 prevPosition = currentTask.getEndPosition()
 
+        plt.legend()
         plt.show()
 
+    def graphEvaluations(self):
+        plt.figure(1)
+        plt.plot(range(len(self.bestPopulationEvaluations)), self.bestPopulationEvaluations, label='Best population evaluations')
+        plt.plot(range(len(self.solutionEvaluations)), self.solutionEvaluations, label='Solution evaluations')
 
-uav1 = Uav(600, 2, 2, Position(0, 0))
-uav2 = Uav(400, 7, 6, Position(0, 0))
-task1 = Task(Position(1, 1), Position(1, 3), 5, 1)
-task2 = Task(Position(3, 7), Position(2, 3), 3, 1)
-task3 = Task(Position(8, 2), Position(8, 4), 2, 1)
-task4 = Task(Position(6, 4), Position(4, 6), 3, 3.5)
-task5 = Task(Position(1, 4), Position(7, 3), 1, 1)
-cp1 = ChargingPoint(Position(2,3))
-cp2 = ChargingPoint(Position(4,4))
-
-uavs = np.array((uav1,uav2))
-tasks = np.array([task1, task2, task3, task4, task5])
-cps = np.array([cp1, cp2])
-
-run = GeneticAlgo(uavs, tasks, cps)
-print(run.getSolution())
-run.graphSolution()
+        plt.legend()
