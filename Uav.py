@@ -24,6 +24,7 @@ class Uav:
     currentTask = 0
     distanceToTask = 0
     timeSpentPerTask = []
+    energySpentPerTask = []
     trajectsEnergy = []
     currentTrajectTime = 0
     currentTrajectVelocity = 0
@@ -83,6 +84,7 @@ class Uav:
         self.removeBatteryEnergy(taskEnergy)
         self.position = task.getEndPosition()
         self.timeSpentPerTask.append(self.currentTrajectTime)
+        self.energySpentPerTask.append(taskEnergy)
         
         if task.isChargingPoint():
             self.recharge()
@@ -91,6 +93,8 @@ class Uav:
         currentTraject = Traject(self.position, self.currentTask, self.currentBatteryCapacity)
         if currentTraject in self.trajectsEnergy:
             previousTraject = self.trajectsEnergy[np.where(np.array(self.trajectsEnergy) == currentTraject)[0][0]]
+            self.currentTrajectEnergy = previousTraject.getEnergy()
+            self.currentTrajectTime = previousTraject.getTime()
             return previousTraject.getEnergy()
         
         currentTrajectEnergy = self.taskEnergyOptimizer(task)
@@ -125,7 +129,7 @@ class Uav:
             energy = self.energyConsumption(velocity)
 
         self.currentTrajectVelocity = velocity
-        self.currentTrajectTime = (self.distanceToTask + self.currentTask.getTrajectDistance()) / velocity / 60
+        self.currentTrajectTime = (self.distanceToTask + self.currentTask.getTrajectDistance()) / velocity
         
         # print("Energy: " + str(energy) + " , current battery capacity: " + str(self.currentBatteryCapacity))
         return energy
@@ -191,7 +195,13 @@ class Uav:
         self.recharge()
         self.totalEnergyUsed = 0
         self.position = self.startPosition
+
+        self.currentTask = 0
+        self.distanceToTask = 0
         self.timeSpentPerTask = []
+        self.energySpentPerTask = []
+        self.currentTrajectTime = 0
+        self.currentTrajectVelocity = 0
 
     def energyConsumption(self, v):
         l1 = self.distanceToTask

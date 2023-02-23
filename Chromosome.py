@@ -4,12 +4,13 @@ from typing import List
 from AlgoConstants import AlgoConstants as const
 
 class Chromosome:
-    def __init__(self, tasksOrder: List[int], cutPositions: List[int], *, timePerTaskPerUav = []):
+    def __init__(self, tasksOrder: List[int], cutPositions: List[int], *, timePerTaskPerUav = [], energyPerTaskPerUav = []):
         self.__tasksOrder = tasksOrder
         self.__tasksOrderWithRecharginTasks = tasksOrder
         self.__cutPositions = cutPositions
         self.setTasksPerUav()
         self.__timePerTaskPerUav = timePerTaskPerUav
+        self.__energyPerTaskPerUav = energyPerTaskPerUav
     
     def __str__(self) -> str:
         details = ''
@@ -50,8 +51,21 @@ class Chromosome:
     def setCutPositions(self, cutPositions):
         self.__cutPositions = list(map(int, cutPositions))
         self.__tasksPerUav = self.setTasksPerUav()
+    
+    def respectDeliveryWidow(self) -> bool:
+        for uavTasks in self.__tasksPerUav:
+            timeSpent = 0
 
-    def respectDeliveryWindow(self) -> bool:
+            for taskIndex in uavTasks:
+                currentTask = self.allTasks[int(self.__tasksOrder[taskIndex])]
+                timeSpent += self.__timePerTaskPerUav[uavTasks][taskIndex]
+
+                if currentTask.getMaxDeliveryWindow < timeSpent:
+                    return False
+            
+        return True
+    
+    def respectDeliveryWindowOld(self) -> bool:
         offset = 0
         lastOffset = 0
         currentDrone = 0
@@ -82,8 +96,17 @@ class Chromosome:
 
         self.__tasksPerUav = tasksPerUav
 
-    # def setTimePerTaskPerUav(self, timePerTaskPerUav: List[float]):
+    def setTimePerTaskPerUav(self, timePerTaskPerUav: List[float]):
+        self.__timePerTaskPerUav = timePerTaskPerUav
         
+    def setEnergyPerTaskPerUav(self, energyPerTaskPerUav: List[float]):
+        self.__energyPerTaskPerUav = energyPerTaskPerUav
+
+    def getTimePerTaskPerUav(self) -> List[float]:
+        return self.__timePerTaskPerUav
+        
+    def getEnergyPerTaskPerUav(self) -> List[float]:
+        return self.__energyPerTaskPerUav
 
     @classmethod
     def toChromosomes(cls, tasksPerUav: List):

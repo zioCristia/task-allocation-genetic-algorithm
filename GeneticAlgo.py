@@ -65,6 +65,7 @@ class GeneticAlgo:
     solutionEvaluations = []
     solutionEvaluationsDifferences = []
     iterationNumber = 0
+    solutionFound = False
 
     def __init__(self, uavs: List[Uav], tasks: List[Task], chargingPoints: List[ChargingPoint]): #np.ndarray for typing np array
         self.uavs = uavs
@@ -85,10 +86,10 @@ class GeneticAlgo:
 
     def getUavs(self):
         return self.uavs
-    
+
     def individualCreation(self) -> Individual:
         chromosome = self.chromosomeCreation()
-        while not self.respectConstraints(chromosome):  # TODO change to Chromosome.respectConstraints
+        while not self.respectMaxPayload(chromosome):  # TODO change to Chromosome.respectConstraints
             chromosome = self.chromosomeCreation()
         
         return Individual(chromosome)
@@ -110,21 +111,25 @@ class GeneticAlgo:
         return Chromosome(tasksOrder, cutPositions)
 
     def addChargingTasksAndEvaluationPopulations(self):
-        individualsIndexToDelate = []
+        individualsIndexToDelete = []
         for i in range(len(self.population)):
             chromosomeWithCT = self.addChargingTasks(self.population[i].getChromosome())
             if chromosomeWithCT == 0:
-                individualsIndexToDelate.append(i)
-            self.population[i] = Individual(chromosomeWithCT, self.individualEvaluation(chromosomeWithCT))
-            self.population = np.delete(self.population, individualsIndexToDelate)
+                individualsIndexToDelete.append(i)
 
-        individualsIndexToDelate = []
+            self.saveEnergiesAndTimeIn(chromosomeWithCT)
+            self.population[i] = Individual(chromosomeWithCT, self.individualEvaluation(chromosomeWithCT))
+            self.population = np.delete(self.population, individualsIndexToDelete)
+
+        individualsIndexToDelete = []
         for i in range(len(self.oppositePopulation)):
             chromosomeWithCT = self.addChargingTasks(self.oppositePopulation[i].getChromosome())
             if chromosomeWithCT == 0:
-                individualsIndexToDelate.append(i)
+                individualsIndexToDelete.append(i)
+
+            self.saveEnergiesAndTimeIn(chromosomeWithCT)
             self.oppositePopulation[i] = Individual(chromosomeWithCT, self.individualEvaluation(chromosomeWithCT))
-            self.oppositePopulation = np.delete(self.oppositePopulation, individualsIndexToDelate)
+            self.oppositePopulation = np.delete(self.oppositePopulation, individualsIndexToDelete)
     
     def addChargingTasksPerDrone(self, taskOrder: List[int], uavNumber: int) -> List[int]:
         self.uavs[uavNumber].reset()
@@ -308,11 +313,39 @@ class GeneticAlgo:
         # energy optimization
         return self.energyObjectiveFunction()
     
+    def saveEnergiesAndTimeIn(self, chromosome: Chromosome):
+        timePerTaskPerUav = []
+        energyPerTaskPerUav = []
+
+        for u in range(self.NU):
+            timePerTaskPerUav.append(self.uavs[u].timeSpentPerTask)
+            energyPerTaskPerUav.append(self.uavs[u].energySpentPerTask)
+
+        chromosome.setTimePerTaskPerUav(timePerTaskPerUav)
+        chromosome.setEnergyPerTaskPerUav(energyPerTaskPerUav)
+
     def respectConstraints(self, chromosome: Chromosome) -> bool:
+        # deprecated: used separately the two check constraints
         # TODO: add here the other constraints (payload), maybe better use directly methods on Chromosome
         return self.respectDeliveryWindow(chromosome) and self.respectMaxPayload(chromosome)
 
     def respectDeliveryWindow(self, chromosome: Chromosome) -> bool:
+        uavIndex = 0
+        for uavTasks in chromosome.getTasksPerUav():
+            timeSpent = 0
+
+            t = 0
+            for taskIndex in uavTasks:
+                currentTask = self.allTasks[int(taskIndex)]
+                timeSpent += chromosome.getTimePerTaskPerUav()[uavIndex][t]
+                
+                if  not currentTask.isChargingPoint() and currentTask.getMaxDeliveryWindow() < timeSpent:
+                    return False
+                t += 1
+            uavIndex += 1
+        return True
+
+    def respectDeliveryWindowOld(self, chromosome: Chromosome) -> bool:
         # TODO use the Chromosome.respectDeliveryWindow, not this method
         offset = 0
         lastOffset = 0
@@ -390,7 +423,38 @@ class GeneticAlgo:
             oppositeIndividual = self.oppositeIndividualCreation(individual.getChromosome())
             self.oppositePopulation.append(oppositeIndividual)
 
+    def maxPayloadPopulationsSelection(self):
+        selectedPopulation = np.empty(0)
+        selectedOppositePopulation = np.empty(0)
+
+        for i in range(len(self.population)):
+            if self.respectMaxPayload(self.population[i].getChromosome()):
+                selectedPopulation = np.append(selectedPopulation, self.population[i])
+
+        for i in range(len(self.oppositePopulation)):
+            if self.respectMaxPayload(self.oppositePopulation[i].getChromosome()):
+                selectedOppositePopulation = np.append(selectedOppositePopulation, self.oppositePopulation[i])
+        
+        self.population = selectedPopulation
+        self.oppositePopulation = selectedOppositePopulation
+
+    def deliveryWindowPopulationsSelection(self):
+        selectedPopulation = np.empty(0)
+        selectedOppositePopulation = np.empty(0)
+
+        for i in range(len(self.population)):
+            if self.respectDeliveryWindow(self.population[i].getChromosome()):
+                selectedPopulation = np.append(selectedPopulation, self.population[i])
+
+        for i in range(len(self.oppositePopulation)):
+            if self.respectDeliveryWindow(self.oppositePopulation[i].getChromosome()):
+                selectedOppositePopulation = np.append(selectedOppositePopulation, self.oppositePopulation[i])
+        
+        self.population = selectedPopulation
+        self.oppositePopulation = selectedOppositePopulation
+
     def constraintsPopulationsSelection(self):
+        # deprecated: not used because change the logic with delivery window
         selectedPopulation = np.empty(0)
         selectedOppositePopulation = np.empty(0)
 
@@ -655,12 +719,28 @@ class GeneticAlgo:
     def saveBestPopulationEvaluation(self):
         self.bestPopulationEvaluations.append(self.takeBestPopulationEvaluation())
     
+    def saveSolution(self):
+        newBestSolution = self.takeBestN(self.population, 1)
+        if len(newBestSolution) == 0:
+            newBestSolution = Individual(Chromosome([-1],[-1]))
+        else:
+            self.solutionFound = True
+            newBestSolution = newBestSolution[0]
+
+        print("New best solution:")
+        newBestSolution.toString()
+        if newBestSolution.getEvaluation() < self.solution.getEvaluation() or self.iterationNumber == 0:
+            self.solution = Individual.fromIndividual(newBestSolution)
+        self.saveSolutionEvaluation()
+    
     def saveSolutionEvaluation(self):
         self.solutionEvaluations.append(self.solution.getEvaluation())
         if self.iterationNumber > 0:
             self.solutionEvaluationsDifferences.append(abs(self.solutionEvaluations[-1] - self.solutionEvaluations[-2]))
 
     def takeBestPopulationEvaluation(self) -> float:
+        if len(self.population) == 0:
+            return 0
         return self.takeBestN(self.population, 1)[0].getEvaluation()
 
     def reset(self):
@@ -672,6 +752,7 @@ class GeneticAlgo:
         self.solutionEvaluationsDifferences = []
         self.iterationNumber = 0
         self.uavsTasksEnergy = np.empty(self.NU)
+        self.solutionFound = False
 
     def run(self):
         self.reset()
@@ -698,7 +779,7 @@ class GeneticAlgo:
             # print("population offspring time: " + str(offSpringTime))
 
             # offSpringTime = time.process_time()
-            self.constraintsPopulationsSelection()
+            self.maxPayloadPopulationsSelection()
             # constrTime = time.process_time() - offSpringTime
             # print("population constraint time: " + str(constrTime))
 
@@ -709,7 +790,7 @@ class GeneticAlgo:
 
             print("Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
             # chargeTime = time.process_time()
-            self.constraintsPopulationsSelection()
+            self.deliveryWindowPopulationsSelection()
             # constr2Time = time.process_time() - chargeTime
             # print("population crossover 2 time: " + str(constr2Time))
 
@@ -718,14 +799,7 @@ class GeneticAlgo:
             print("After Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
             self.saveBestPopulationEvaluation()
 
-            newBestSolution = self.takeBestN(self.population, 1)[0]
-            print("New best solution:")
-            newBestSolution.toString()
-            if newBestSolution.getEvaluation() < self.solution.getEvaluation() or self.iterationNumber == 0:
-                self.solution = Individual.fromIndividual(newBestSolution)
-            self.saveSolutionEvaluation()
-            print("Solution:")
-            self.solution.toString()
+            self.saveSolution()
 
             self.removeRechargingTaskPopulation()
             print("iteration time: " + str(time.process_time() - start))
@@ -740,11 +814,25 @@ class GeneticAlgo:
         return self.solution
 
     def printSolution(self):
+        if not self.solutionFound:
+            print("\nSolution not found")
+            return
+        
         print("\nSolution")
         print("Evaluation: " + str(self.solution.getEvaluation()))
         n = 0
-        for u in self.solution.getChromosome().getTasksPerUav():
-            print("\tuav " + str(n) + ": tasks: " + str(u))
+        for t in self.solution.getChromosome().getTasksPerUav():
+            print("\tuav " + str(n) + ": tasks: " + str(t))
+            n += 1
+        n = 0
+        print("Times [minutes]:")
+        for t in self.solution.getChromosome().getTimePerTaskPerUav():
+            print("\tuav " + str(n) + ": tasks: " + str(np.array(t)/60))
+            n += 1
+        n = 0
+        print("Energies [W]:")
+        for e in self.solution.getChromosome().getEnergyPerTaskPerUav():
+            print("\tuav " + str(n) + ": tasks: " + str(e))
             n += 1
 
     def printPopulationTasksPerUav(self):
@@ -770,15 +858,16 @@ class GeneticAlgo:
         for cp in self.chargingPoints:
             plt.plot([cp.getStartPosition().getX()], [cp.getStartPosition().getY()], 'P', label='Charging Point')
 
-        for u in range(self.NU):
-            droneTask = solutionChromosome.getTasksPerUav()[u]
+        if self.solutionFound:
+            for u in range(self.NU):
+                droneTask = solutionChromosome.getTasksPerUav()[u]
 
-            prevPosition = Position(0,0)
-            for t in droneTask:
-                currentTask = self.allTasks[int(t)]
-                currentPos = currentTask.getStartPosition()
-                plt.plot([prevPosition.getX(), currentPos.getX()], [prevPosition.getY(), currentPos.getY()], '--')
-                prevPosition = currentTask.getEndPosition()
+                prevPosition = Position(0,0)
+                for t in droneTask:
+                    currentTask = self.allTasks[int(t)]
+                    currentPos = currentTask.getStartPosition()
+                    plt.plot([prevPosition.getX(), currentPos.getX()], [prevPosition.getY(), currentPos.getY()], '--')
+                    prevPosition = currentTask.getEndPosition()
 
         plt.legend()
         plt.show()
