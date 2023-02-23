@@ -39,5 +39,8 @@ class Traject:
     def setTime(self, time):
         self.time = time
 
+    def getTime(self):
+        return self.time
+
     def setVelocity(self, velocity):
         self.velocity = velocity

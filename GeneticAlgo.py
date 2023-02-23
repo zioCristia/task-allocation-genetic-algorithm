@@ -553,23 +553,19 @@ class GeneticAlgo:
 
     def individualCrossoverInPopulation(self, individualIndex: int):
         # TODO change this method to be a Population class method
-        # TOFIX check if it works
         chromosomeForCross = self.randomChromosomeForCrossDifferentFrom(individualIndex, len(self.population))
         chromosome = self.population[individualIndex].getChromosome()
         
-        chromosome.crossWith(self.population[chromosomeForCross].getChromosome().getTasksOrder())
-        #self.population[individualIndex] = Individual(chromosome)
+        newCrossedChromosome = chromosome.crossWith(self.population[chromosomeForCross].getChromosome().getTasksOrder())
+        self.population = np.append(self.population, Individual(newCrossedChromosome))
 
     def individualCrossoverInOppositePopulation(self, individualIndex: int):
         # TODO change this method to be a Population class method
-        # TOFIX check if it works
         chromosomeForCross = self.randomChromosomeForCrossDifferentFrom(individualIndex, len(self.oppositePopulation))
         chromosome = self.oppositePopulation[individualIndex].getChromosome()
         
-        chromosome.crossWith(self.oppositePopulation[chromosomeForCross].getChromosome().getTasksOrder())
-        crossedChromosome = self.addChargingTasks(chromosome)
-        if crossedChromosome != 0:
-            self.oppositePopulation[individualIndex] = Individual(crossedChromosome, self.individualEvaluation(crossedChromosome))
+        newCrossedChromosome = chromosome.crossWith(self.oppositePopulation[chromosomeForCross].getChromosome().getTasksOrder())
+        self.oppositePopulation = np.append(self.oppositePopulation, Individual(newCrossedChromosome))
 
     def offspringCreation(self):
         for i in range(0, len(self.population), self.GROUP_MUTATION_NUMBER):

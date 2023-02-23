@@ -1,13 +1,15 @@
 import numpy as np
+import random
 from typing import List
 from AlgoConstants import AlgoConstants as const
 
 class Chromosome:
-    def __init__(self, tasksOrder: List[int], cutPositions: List[int]):
+    def __init__(self, tasksOrder: List[int], cutPositions: List[int], *, timePerTaskPerUav = []):
         self.__tasksOrder = tasksOrder
         self.__tasksOrderWithRecharginTasks = tasksOrder
         self.__cutPositions = cutPositions
         self.setTasksPerUav()
+        self.__timePerTaskPerUav = timePerTaskPerUav
     
     def __str__(self) -> str:
         details = ''
@@ -80,6 +82,9 @@ class Chromosome:
 
         self.__tasksPerUav = tasksPerUav
 
+    # def setTimePerTaskPerUav(self, timePerTaskPerUav: List[float]):
+        
+
     @classmethod
     def toChromosomes(cls, tasksPerUav: List):
         # not used
@@ -93,44 +98,37 @@ class Chromosome:
             offset += len(tasksPerUav[u])
 
     def crossWith(self, tasksOrderForCross: List[int]):
-        leftCutIndex, rightCutIndex = self.randomCrossoverCuttingIndex()
-        storedTaskOrder = np.array(self.__tasksOrder)
+        """Perform partially-mapped crossover (PMX) with the input chromosome.
 
-        fromFirstParent = storedTaskOrder[leftCutIndex:rightCutIndex]
-        fromSecondParent = tasksOrderForCross[leftCutIndex:rightCutIndex]
+        Args:
+            tasksOrderForCross (List[int]): The task order for the second parent chromosome.
 
-        for p in range(leftCutIndex,rightCutIndex):
-            i = np.where(self.getTasksOrder() == tasksOrderForCross[p])[0]
-            if len(i) > 0:
-                i = i[0]
+        Returns:
+            Chromosome: The offspring chromosome generated from the input parents and the same cut positions.
+        """
+        # select two random cut points
+        cut_points = sorted(np.random.choice(range(1, len(self.__tasksOrder)), size=2, replace=False))
 
-                if i < leftCutIndex and i > rightCutIndex:
-                    ni = self.newMappedTaskIndex(p, tasksOrderForCross[leftCutIndex:rightCutIndex])
-                    self.__tasksOrder[i] = self.__tasksOrder[ni]
-
-        self.__tasksOrder[leftCutIndex:rightCutIndex] = tasksOrderForCross[leftCutIndex:rightCutIndex]
-        if sum(self.__tasksOrder) != 10:
-            raise Exception("Crossing operation error")
-        self.setTasksPerUav()
-
-    def newMappedTaskIndex(self, startIndex, cuttedTaskOrder) -> int:
-        newMappedTask = self.__tasksOrder[startIndex]
-        newIndex = np.where(cuttedTaskOrder == newMappedTask)[0]
-
-        if len(newIndex) > 0 :#and newMappedTask != cuttedTaskOrder[newIndex]:
-            newIndex = newIndex[0]
-            # self.__tasksOrder[i] = self.__tasksOrder[t]
-            return self.newMappedTaskIndex(newIndex, cuttedTaskOrder)
-        # else:
-        #     self.__tasksOrder[i] = self.__tasksOrder[p]
-
-        return startIndex
-    
-    def randomCrossoverCuttingIndex(self):
-        leftCutIndex = np.random.randint(const.NT)
-        rightCutIndex = np.random.randint(const.NT)
-        while (leftCutIndex >= rightCutIndex):
-            leftCutIndex = np.random.randint(const.NT)
-            rightCutIndex = np.random.randint(const.NT)
+        offspring = self.__tasksOrder.copy()
         
-        return leftCutIndex, rightCutIndex
+        # determine mapping sections and mapping pairs
+        section1 = self.__tasksOrder[cut_points[0]:cut_points[1] + 1]
+        section2 = tasksOrderForCross[cut_points[0]:cut_points[1] + 1]
+        mapping_pairs = list(zip(section1, section2))
+        
+        # create mapping dictionaries for each parent
+        mapping_dict1 = {pair[0]: pair[1] for pair in mapping_pairs}
+        mapping_dict2 = {pair[1]: pair[0] for pair in mapping_pairs}
+        
+        # fill in remaining genes using mappings
+        for i in range(len(offspring)):
+            if i < cut_points[0] or i > cut_points[1]:
+                while offspring[i] in mapping_dict2:
+                    offspring[i] = mapping_dict2[offspring[i]]
+        
+        # fill in mapping sections of offspring with values from other parent
+        offspring[cut_points[0]:cut_points[1] + 1] = section2
+        
+        return Chromosome(offspring, self.__cutPositions)
+
+    

@@ -8,7 +8,7 @@ class AlgoConstants:
     # number of the fittest chromosomes taken without the roulette wheel selection
     BEST_TAKEN = 4
     # crossover probability
-    PC = 0
+    PC = 0.3
     # mutation probability
     PM = 0.3
     # max iterations for genetic algo

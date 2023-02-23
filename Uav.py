@@ -82,6 +82,7 @@ class Uav:
 
         self.removeBatteryEnergy(taskEnergy)
         self.position = task.getEndPosition()
+        self.timeSpentPerTask.append(self.currentTrajectTime)
         
         if task.isChargingPoint():
             self.recharge()
