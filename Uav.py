@@ -7,6 +7,7 @@ from typing import List
 import utility as ut
 import math
 import matplotlib.pyplot as plt
+from AlgoConstants import AlgoConstants as const
 
 class Uav:
     eta = 0.8
@@ -29,7 +30,7 @@ class Uav:
     currentTrajectTime = 0
     currentTrajectVelocity = 0
 
-    def __init__(self, batteryCapacity: float, mass: float, maxPayloadMass: float, startPosition: Position, *, position: Position = Position(0,0), currentBatteryCapacity = 0, currentTask: Task = None, timeSpentPerTask: List = [], trajectsEnergy: List = []) -> None:
+    def __init__(self, batteryCapacity: float, mass: float, maxPayloadMass: float, *, startPosition: Position = Position(0,0), position: Position = Position(0,0), currentBatteryCapacity = 0, currentTask: Task = None, timeSpentPerTask: List = [], trajectsEnergy: List = []) -> None:
         self.batteryCapacity = batteryCapacity
         self.mass = mass
         self.maxPayloadMass = maxPayloadMass
@@ -90,7 +91,7 @@ class Uav:
             self.recharge()
     
     def taskEnergy(self, task: Task):
-        currentTraject = Traject(self.position, self.currentTask, self.currentBatteryCapacity)
+        currentTraject = Traject(self.position, self.currentTask, self.currentBatteryCapacity, self.getTotalTimeSpentTillNow())
         if currentTraject in self.trajectsEnergy:
             previousTraject = self.trajectsEnergy[np.where(np.array(self.trajectsEnergy) == currentTraject)[0][0]]
             self.currentTrajectEnergy = previousTraject.getEnergy()
@@ -113,20 +114,22 @@ class Uav:
         C2 = sp.NonlinearConstraint(self.energyConsumption, lb=0, ub=self.currentBatteryCapacity)
 
         if not task.isChargingPoint():
-            # C3 = sp.NonlinearConstraint(self.timeSpent, lb=0, ub=self.currentTask.getMaxDeliveryWindow())
-            sol = sp.minimize(self.energyConsumption, (5,), bounds=(C1), constraints=(C2,))
-            if not sol.success:
-                # print ("Solution not found")
-                return 0
+            C3 = sp.NonlinearConstraint(self.timeSpent, lb=0, ub=self.currentTask.getMaxDeliveryWindow())
+            sol = sp.minimize(self.energyConsumption, (5,), bounds=(C1), constraints=(C2, C3))
             energy = sol.fun[0]
             velocity = sol.x[0]
+            if not sol.success and energy > self.currentBatteryCapacity:
+                if const.DEBUG:
+                    print ("Solution not found")
+                return 0
         else:
             sol = sp.minimize(lambda v : d/v, (5,), bounds=(C1), constraints=(C2,))
-            if not sol.success:
-                # print ("Solution not found")
-                return 0
             velocity = sol.x[0]
             energy = self.energyConsumption(velocity)
+            if not sol.success and energy > self.currentBatteryCapacity:
+                if const.DEBUG:
+                    print ("Solution not found")
+                return 0
 
         self.currentTrajectVelocity = velocity
         self.currentTrajectTime = (self.distanceToTask + self.currentTask.getTrajectDistance()) / velocity

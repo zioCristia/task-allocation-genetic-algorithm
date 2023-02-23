@@ -1,4 +1,6 @@
 class AlgoConstants:
+    # for debugging in the crucial part
+    DEBUG = False
     # minimum maximum time weight factor
     ALPHA = 0
     # minimum consumption weight factor (alpha + beta = 1)
