@@ -1,4 +1,6 @@
 class AlgoConstants:
+    # change the algo to add the recharging tasks only in the end
+    RC_ONLY_END = False
     # for debugging in the crucial part
     DEBUG = False
     # minimum maximum time weight factor

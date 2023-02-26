@@ -99,30 +99,41 @@ class GeneticAlgo:
     def addChargingTasksAndEvaluationPopulations(self):
         individualsIndexToDelete = []
         for i in range(len(self.population)):
-            chromosomeWithCT = self.addChargingTasks(self.population[i].getChromosome())
-            if chromosomeWithCT == 0:
-                if const.DEBUG:
-                    print("")
-                individualsIndexToDelete.append(i)
-                continue
+            if const.RC_ONLY_END:
+                newChromosome = self.calculateTasksEnergies(self.population[i].getChromosome())
+            else:
+                newChromosome = self.addChargingTasks(self.population[i].getChromosome())
+                if newChromosome == 0:
+                    if const.DEBUG:
+                        print("")
+                    individualsIndexToDelete.append(i)
+                    continue
 
-            self.saveEnergiesAndTimeIn(chromosomeWithCT)
-            self.population[i] = Individual(chromosomeWithCT, self.individualEvaluation(chromosomeWithCT))
+            self.saveEnergiesAndTimeIn(newChromosome)
+            self.population[i] = Individual(newChromosome, self.individualEvaluation(newChromosome))
         self.population = np.delete(self.population, individualsIndexToDelete)
 
         individualsIndexToDelete = []
         for i in range(len(self.oppositePopulation)):
-            chromosomeWithCT = self.addChargingTasks(self.oppositePopulation[i].getChromosome())
-            if chromosomeWithCT == 0:
-                if const.DEBUG:
-                    print("")
-                individualsIndexToDelete.append(i)
-                continue
+            if const.RC_ONLY_END:
+                newChromosome = self.calculateTasksEnergies(self.oppositePopulation[i].getChromosome())
+            else:
+                newChromosome = self.addChargingTasks(self.oppositePopulation[i].getChromosome())
+                if newChromosome == 0:
+                    if const.DEBUG:
+                        print("")
+                    individualsIndexToDelete.append(i)
+                    continue
 
-            self.saveEnergiesAndTimeIn(chromosomeWithCT)
-            self.oppositePopulation[i] = Individual(chromosomeWithCT, self.individualEvaluation(chromosomeWithCT))
+            self.saveEnergiesAndTimeIn(newChromosome)
+            self.oppositePopulation[i] = Individual(newChromosome, self.individualEvaluation(newChromosome))
         self.oppositePopulation = np.delete(self.oppositePopulation, individualsIndexToDelete)
     
+    def addChargingTasksIndividual(self, individual: Individual) -> Individual:
+        newChromosome = self.addChargingTasks(individual.getChromosome())
+        self.saveEnergiesAndTimeIn(newChromosome)
+        return Individual(newChromosome, self.individualEvaluation(newChromosome))
+
     def addChargingTasksPerDrone(self, taskOrder: List[int], uavNumber: int) -> List[int]:
         self.uavs[uavNumber].reset()
         uav = self.uavs[uavNumber]
@@ -209,7 +220,7 @@ class GeneticAlgo:
 
         return newTaskOrder
     
-    def addChargingTasks(self, chromosome: Chromosome):
+    def addChargingTasks(self, chromosome: Chromosome) -> Chromosome:
         tasksOrder = []
 
         for u in range(self.NU):
@@ -220,6 +231,22 @@ class GeneticAlgo:
             tasksOrder.append(droneTasksWithCP)
 
         return Chromosome.fromTasksPerUav(tasksOrder)
+
+    def calculateTasksEnergies(self, chromosome: Chromosome) -> Chromosome:
+        for u in range(self.NU):
+            self.uavs[u].reset()
+            droneTaskIndex = chromosome.getTasksPerUav()[u]
+            droneTasks = self.fromTasksIndexesToTasks(droneTaskIndex)
+            self.uavs[u].evaluateTasksEnergies(droneTasks)
+        
+        return chromosome
+
+    def fromTasksIndexesToTasks(self, tasksIndexes: List[int]) -> List[Task]:
+        tasks = []
+        for t in tasksIndexes:
+            tasks.append(self.allTasks[int(t)])
+        
+        return tasks
 
     def optimumChargingPoint(self, position: Position, nextTask: Task = 0):
         # TOFIX verify it works
@@ -799,6 +826,9 @@ class GeneticAlgo:
             print("iteration time: " + str(time.process_time() - start))
             print("")
             self.iterationNumber += 1
+
+        if const.RC_ONLY_END:
+            self.solution = self.addChargingTasksIndividual(self.solution)
 
         self.printSolution()
         self.graphEvaluations()
