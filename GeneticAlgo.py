@@ -705,7 +705,7 @@ class GeneticAlgo:
             return True
         
         for diff in self.solutionEvaluationsDifferences[-const.LAST_ITER_CHECKED:]:
-            if diff < 0 and diff > const.DELTA_TOLERANCE:
+            if diff < 0 or diff > const.DELTA_TOLERANCE:
                 return False
             
         return True
