@@ -97,6 +97,52 @@ class GeneticAlgo:
         return Chromosome(tasksOrder, cutPositions)
 
     def addChargingTasksAndEvaluationPopulations(self):
+        # TODO: rewrite this function with calculate enrgy and add recharging task separate
+        individualsIndexToDelete = []
+        for i in range(len(self.population)):
+            if const.RC_IN_THE_END:
+                newChromosome = self.calculateTaskEnergy(self.population[i].getChromosome())
+            else:
+                newChromosome = self.addChargingTasks(self.population[i].getChromosome())
+                if newChromosome == 0:
+                    if const.DEBUG:
+                        print("")
+                    individualsIndexToDelete.append(i)
+                    continue
+
+            self.saveEnergiesAndTimeIn(newChromosome)
+            self.population[i] = Individual(newChromosome, self.individualEvaluation(newChromosome))
+        self.population = np.delete(self.population, individualsIndexToDelete)
+
+        individualsIndexToDelete = []
+        for i in range(len(self.oppositePopulation)):
+            if const.RC_IN_THE_END:
+                newChromosome = self.calculateTaskEnergy(self.oppositePopulation[i].getChromosome())
+            else:
+                newChromosome = self.addChargingTasks(self.oppositePopulation[i].getChromosome())
+                if newChromosome == 0:
+                    if const.DEBUG:
+                        print("")
+                    individualsIndexToDelete.append(i)
+                    continue
+
+            self.saveEnergiesAndTimeIn(newChromosome)
+            self.oppositePopulation[i] = Individual(newChromosome, self.individualEvaluation(newChromosome))
+        self.oppositePopulation = np.delete(self.oppositePopulation, individualsIndexToDelete)
+
+    def addChargingTasksIndividual(self, individual: Individual) -> Individual:
+        newChromosome = self.addChargingTasks(individual.getChromosome())
+        if newChromosome == 0:
+            if const.DEBUG:
+                print("")
+            raise Exception("Impossible to add recharging task to individual")
+        
+        self.saveEnergiesAndTimeIn(newChromosome)
+        return Individual(newChromosome, self.individualEvaluation(newChromosome))
+
+    def energyEvaluationPopulations(self):
+        # deprecated, changed with addChargingTasksAndEvaluationPopulations()
+        # TODO: think a better way to integrate this inside the addChargingTasksAndEvaluationPopulations
         individualsIndexToDelete = []
         for i in range(len(self.population)):
             chromosomeWithCT = self.addChargingTasks(self.population[i].getChromosome())
@@ -209,7 +255,23 @@ class GeneticAlgo:
 
         return newTaskOrder
     
-    def addChargingTasks(self, chromosome: Chromosome):
+    def calculateTaskEnergy(self, chromosome: Chromosome) -> Chromosome:
+        for u in range(self.NU):
+            self.uavs[u].reset()
+            droneTaskIndex = list(map(int, chromosome.getTasksPerUav()[u]))
+            droneTask = self.tasksFromIndexes(droneTaskIndex)
+            self.uavs[u].saveTasksEnergies(droneTask)
+        
+        return chromosome
+    
+    def tasksFromIndexes(self, indexes: List[int]) -> List[Task]:
+        tasks = []
+        for t in indexes:
+            tasks.append(self.allTasks[t])
+        
+        return tasks
+    
+    def addChargingTasks(self, chromosome: Chromosome) -> Chromosome:
         tasksOrder = []
 
         for u in range(self.NU):
@@ -705,7 +767,7 @@ class GeneticAlgo:
             return True
         
         for diff in self.solutionEvaluationsDifferences[-const.LAST_ITER_CHECKED:]:
-            if diff < 0 and diff > const.DELTA_TOLERANCE:
+            if diff < 0 or diff > const.DELTA_TOLERANCE:
                 return False
             
         return True
@@ -799,6 +861,9 @@ class GeneticAlgo:
             print("iteration time: " + str(time.process_time() - start))
             print("")
             self.iterationNumber += 1
+
+        if const.RC_IN_THE_END:
+            self.solution = self.addChargingTasksIndividual(self.solution)
 
         self.printSolution()
         self.graphEvaluations()
