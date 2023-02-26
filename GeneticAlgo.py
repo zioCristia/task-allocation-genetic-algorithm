@@ -750,7 +750,7 @@ class GeneticAlgo:
 
         print("New best solution:")
         newBestSolution.toString()
-        if newBestSolution.getEvaluation() < self.solution.getEvaluation() or self.iterationNumber == 0:
+        if (newBestSolution.getEvaluation() < self.solution.getEvaluation() and newBestSolution.getEvaluation() > 0) or self.iterationNumber == 0:
             self.solution = Individual.fromIndividual(newBestSolution)
         self.saveSolutionEvaluation()
     
