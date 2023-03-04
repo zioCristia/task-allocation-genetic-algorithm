@@ -11,14 +11,14 @@ from AlgoConstants import AlgoConstants as const
 
 class Uav:
     eta = 0.8
-    cd = 0.3
+    cd = 0.1
     rho = 1.23
-    Ad = 0.6
-    Ar = 0.3   # total rotor disk area
+    Ad = 0.2
+    Ar = 0.2   # total rotor disk area
     g = 9.81
     Fm = 0.9  # UAV figure of merit
     BLt = 0.3
-    maxVelocity = 20    # TODO add to the constructor
+    maxVelocity = 15    # TODO add to the constructor
 
     postion = Position(0,0)
     currentBatteryCapacity = 0
