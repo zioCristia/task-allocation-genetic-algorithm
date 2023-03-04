@@ -1,4 +1,9 @@
 class AlgoConstants:
+    # change the algo to add the recharging tasks only in the end
+    RC_ONLY_END = False
+    # delivery window constraints not valued as mandatory
+    MANDATORY_DELIVERY_WINDOW = False
+
     # for debugging in the crucial part
     DEBUG = False
     # Add the recharging task only at the end in the solution

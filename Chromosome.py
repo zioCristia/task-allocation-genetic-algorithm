@@ -4,6 +4,8 @@ from typing import List
 from AlgoConstants import AlgoConstants as const
 
 class Chromosome:
+    respectDeliveryPercentage = 1
+
     def __init__(self, tasksOrder: List[int], cutPositions: List[int], *, timePerTaskPerUav = [], energyPerTaskPerUav = []):
         self.__tasksOrder = tasksOrder
         self.__tasksOrderWithRecharginTasks = tasksOrder
@@ -48,6 +50,12 @@ class Chromosome:
     def setTasksWithRT(self, tasksOrder):
         self.__tasksOrderWithRecharginTasks
 
+    def getRespectDeliveryPercentage(self) -> float:
+        return self.respectDeliveryPercentage
+    
+    def setRespectDeliveryPercentage(self, respectDeliveryPercentage: float):
+        self.respectDeliveryPercentage = respectDeliveryPercentage
+    
     def setCutPositions(self, cutPositions):
         self.__cutPositions = list(map(int, cutPositions))
         self.__tasksPerUav = self.setTasksPerUav()
@@ -60,11 +68,26 @@ class Chromosome:
                 currentTask = self.allTasks[int(self.__tasksOrder[taskIndex])]
                 timeSpent += self.__timePerTaskPerUav[uavTasks][taskIndex]
 
-                if currentTask.getMaxDeliveryWindow < timeSpent:
+                if currentTask.getMaxDeliveryWindow() < timeSpent:
                     return False
             
         return True
     
+    def calculatePercentageRespectDeliveryWindow(self):
+        # not used because we don't have the reference to the tasks
+        taskRespecting = 0
+        for uavTasks in self.__tasksPerUav:
+            timeSpent = 0
+
+            for taskIndex in uavTasks:
+                currentTask = self.allTasks[int(self.__tasksOrder[taskIndex])]
+                timeSpent += self.__timePerTaskPerUav[uavTasks][taskIndex]
+
+                if currentTask.getMaxDeliveryWindow >= timeSpent:
+                    taskRespecting += 1
+            
+        self.respectDeliveryPercentage = taskRespecting / len(self.__tasksOrder)
+
     def respectDeliveryWindowOld(self) -> bool:
         offset = 0
         lastOffset = 0
