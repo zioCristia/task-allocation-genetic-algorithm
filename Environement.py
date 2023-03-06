@@ -19,17 +19,17 @@ class Environement:
     def getUavs(self) -> List[Uav]:
         return self.uavs
 
-    def getUavs(self, index: int) -> Uav:
+    def getUav(self, index: int) -> Uav:
         return self.uavs[index]
 
     def getTasks(self) -> List[Task]:
         return self.tasks
 
-    def getUavs(self, index: int) -> Task:
+    def getTask(self, index: int) -> Task:
         return self.tasks[index]
 
     def getChargingPoints(self) -> List[ChargingPoint]:
         return self.chargingPoints
 
-    def getUavs(self, index: int) -> ChargingPoint:
+    def getChargingPoint(self, index: int) -> ChargingPoint:
         return self.chargingPoints[index]

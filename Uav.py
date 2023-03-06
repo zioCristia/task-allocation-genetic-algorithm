@@ -18,7 +18,7 @@ class Uav:
     g = 9.81
     Fm = 0.9  # UAV figure of merit
     BLt = 0.3
-    maxVelocity = 15    # TODO add to the constructor
+    maxVelocity = 20    # TODO add to the constructor
 
     postion = Position(0,0)
     currentBatteryCapacity = 0

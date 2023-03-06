@@ -66,7 +66,6 @@ class GeneticAlgo:
         self.NCP = len(chargingPoints)
         const.NCP = self.NCP
         self.uavsTasksEnergy = np.empty(self.NU)
-        # self.run()
 
     def getSolution(self):
         return self.solution
@@ -75,8 +74,11 @@ class GeneticAlgo:
         return self.uavs
 
     def individualCreation(self) -> Individual:
+        """
+        Creation of a new individual with a random Chromosome which respects max uav payload capabilities
+        """
         chromosome = self.chromosomeCreation()
-        while not self.respectMaxPayload(chromosome):  # TODO change to Chromosome.respectConstraints
+        while not self.respectMaxPayload(chromosome):  # TODO change to Chromosome.respectMaxPayload
             chromosome = self.chromosomeCreation()
         
         return Individual(chromosome)
@@ -90,7 +92,6 @@ class GeneticAlgo:
         for u in range(self.NU):
             uavTask = np.where(uavTaskSelection == u)[0]
             np.random.shuffle(uavTask)
-            # uavTask = self.addChargingTasksPerDrone(uavTask, u)
             tasksOrder = np.concatenate((tasksOrder, uavTask))
             cutPositions[u] = len(uavTask) + offset
             offset = len(tasksOrder)
@@ -98,7 +99,7 @@ class GeneticAlgo:
         return Chromosome(tasksOrder, cutPositions)
 
     def addChargingTasksAndEvaluationPopulations(self):
-        # TODO: rewrite this function with calculate enrgy and add recharging task separate
+        # TODO: rewrite this function with calculate energy and add recharging task separate
         individualsIndexToDelete = []
         for i in range(len(self.population)):
             if const.RC_IN_THE_END:
@@ -178,6 +179,7 @@ class GeneticAlgo:
         self.oppositePopulation = np.delete(self.oppositePopulation, individualsIndexToDelete)
     
     def addChargingTasksIndividual(self, individual: Individual) -> Individual:
+        # TODELETE
         newChromosome = self.addChargingTasks(individual.getChromosome())
         self.saveEnergiesAndTimeIn(newChromosome)
         return Individual(newChromosome, self.individualEvaluation(newChromosome))
@@ -904,9 +906,6 @@ class GeneticAlgo:
         self.printSolution()
         self.graphEvaluations()
         self.graphSolution()
-
-    def getSolution(self):
-        return self.solution
 
     def printSolution(self):
         if not self.solutionFound:
