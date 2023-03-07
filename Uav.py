@@ -11,7 +11,7 @@ from AlgoConstants import AlgoConstants as const
 
 class Uav:
     eta = 0.8
-    cd = 0.1
+    cd = 0.3
     rho = 1.23
     Ad = 0.2
     Ar = 0.2   # total rotor disk area

@@ -60,6 +60,8 @@ task4 = Task(Position(1000, 4000), Position(7000, 3000), 1, 1)
 cp0 = ChargingPoint(Position(2000,5000))
 cp1 = ChargingPoint(Position(4000,4000))
 
+uav0.recharge()
+uav1.recharge()
 # Energy consumption test
 # 31 420
 print("uav 0 can take tasks 31? " + str(uav0.canTakeTasks([task3, task1]))) # false

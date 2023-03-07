@@ -31,9 +31,4 @@ def pmx_crossover(parent1, parent2):
 parent1 = [0, 1, 2, 3, 4, 5, 6, 7]
 parent2 = [3, 7, 5, 1, 6, 0, 2, 4]
 
-offspring1 = pmx_crossover(parent1, parent2)
-
-# Print the input and output chromosomes
-print("Parent 1: ", parent1)
-print("Parent 2: ", parent2)
-print("Offspring 1: ", offspring1)
+print(sum(parent1))
