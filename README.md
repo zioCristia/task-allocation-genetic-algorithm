@@ -25,11 +25,15 @@ The capability of the proposed solution of efficiently handling the formulated p
 
 
 ## Next steps:
-- Optimize energy consumption algorithm
-- Better use of OOP with for example of a Population class
+The following are the next steps to do on the algorithm, with no particular order:
+
+- Better use of OOP with for example of a Population class (and Solution class maybe?)
+- Separate Uav with a parent class UavDeployed to differenciate the basic uav characteristic and functionalities and the use itself of the Uav (with for example position, currentTaks, currentTrajectTime,...)
+- Rethink of a better way to initialize the population of GA, we do too many operations not anymore needed
+- Save in the indiviual the chromosome with and without RT so that we don't need to recreate it at each loop
 - Use environement class for stockig of uavs, tasks of ga algo
 - Use of Task object insted of number index for tasks and uavs
 - Work with lists of Chromosomes insted of Individuals, use them only after the evaluation
-- Rethink of a better way to initialize the population of GA, we do too many operations not anymore needed
-- Separate Uav with a parent class UavDeployed to differenciate the basic uav characteristic and functionalities and the use itself of the Uav (with for example position, currentTaks, currentTrajectTime,...)
+- Optimize energy consumption algorithm
+- Add a stopping criteria when a key is pressed
 
