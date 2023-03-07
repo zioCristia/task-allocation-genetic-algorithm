@@ -19,10 +19,15 @@ The UAVs are assumed to be able to perform only one task at a time. In order to 
 The initial population of the genetic algorithm is created randomly, and subsequent mutation and crossover operations are performed to increase the diversity of the population and avoid incurring in local minima.
 The capability of the proposed solution of efficiently handling the formulated problem is demonstrated with ad-hoc defined scenarios, which represent the algorithm's instances.
 
+## Disclaimer
+This is not intended to be either a perfect or a final version of the algorithm, because there is still much to be done and implemented to optimize it and make it easier to use.
+Any suggestions and ways for improvement are accepted.
 
 ## Index
+- [How to use the algo](#how-to-use-the-algo)
 - [Next steps](#next-steps)
 
+## How to use the algo
 
 ## Next steps:
 The following are the next steps to do on the algorithm, with no particular order:
