@@ -28,6 +28,11 @@ Any suggestions and ways for improvement are accepted.
 - [Next steps](#next-steps)
 
 ## How to use the algo
+To start go to 'main.py' and create your environnemnt with uavs, tasks and recharging tasks. If needed change the uav's constants inside the 'Uav.py' class.
+
+In the 'AlgoConstants.py' there are the mains constants used by the algorithm, change them for your needs.
+
+Run the 'main.py' to run the genetic algorithm.
 
 ## Next steps:
 The following are the next steps to do on the algorithm, with no particular order:
