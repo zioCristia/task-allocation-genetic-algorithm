@@ -2,15 +2,16 @@ import numpy as np
 import random
 from typing import List
 from AlgoConstants import AlgoConstants as const
+from Environement import Environement as env
 
 class Chromosome:
+    # TODO: should I use a constructor which can take both tasksPerUav or tasksOrder and cutPositions?
     respectDeliveryPercentage = 1
 
     def __init__(self, tasksOrder: List[int], cutPositions: List[int], *, timePerTaskPerUav = [], energyPerTaskPerUav = []):
         self.__tasksOrder = tasksOrder
-        self.__tasksOrderWithRecharginTasks = tasksOrder
         self.__cutPositions = cutPositions
-        self.setTasksPerUav()
+        self.generateTasksPerUav()
         self.__timePerTaskPerUav = timePerTaskPerUav
         self.__energyPerTaskPerUav = energyPerTaskPerUav
     
@@ -22,6 +23,8 @@ class Chromosome:
 
     @classmethod
     def fromTasksPerUav(cls, tasksPerUav: List):
+        """Generate tasksOrder and cutPositions chromosomes from a tasksPerUav List
+        """
         cutPositions = np.empty(len(tasksPerUav))
         tasksOrder = np.empty(0)
 
@@ -31,24 +34,24 @@ class Chromosome:
             cutPositions[u] = len(tasksPerUav[u]) + offset
             offset += len(tasksPerUav[u])
 
-        # (tasksOrder, cutPositions) = toChromosomes(tasksPerUav)
         return cls(tasksOrder = tasksOrder, cutPositions = cutPositions)
 
     def getTasksOrder(self):
         return self.__tasksOrder
+
+    def setTasksOrder(self, tasksOrder):
+        self.__tasksOrder = list(map(int, tasksOrder))
+        self.generateTasksPerUav()
     
     def getCutPositions(self):
         return self.__cutPositions
     
+    def setCutPositions(self, cutPositions):
+        self.__cutPositions = list(map(int, cutPositions))
+        self.__tasksPerUav = self.generateTasksPerUav()
+    
     def getTasksPerUav(self) -> List:
         return self.__tasksPerUav
-
-    def setTasksOrder(self, tasksOrder):
-        self.__tasksOrder = list(map(int, tasksOrder))
-        self.__tasksPerUav = self.setTasksPerUav()
-
-    def setTasksWithRT(self, tasksOrder):
-        self.__tasksOrderWithRecharginTasks
 
     def getRespectDeliveryPercentage(self) -> float:
         return self.respectDeliveryPercentage
@@ -56,16 +59,13 @@ class Chromosome:
     def setRespectDeliveryPercentage(self, respectDeliveryPercentage: float):
         self.respectDeliveryPercentage = respectDeliveryPercentage
     
-    def setCutPositions(self, cutPositions):
-        self.__cutPositions = list(map(int, cutPositions))
-        self.__tasksPerUav = self.setTasksPerUav()
-    
     def respectDeliveryWidow(self) -> bool:
+        # TODO: verify it works and compare with the used method in GA
         for uavTasks in self.__tasksPerUav:
             timeSpent = 0
 
             for taskIndex in uavTasks:
-                currentTask = self.allTasks[int(self.__tasksOrder[taskIndex])]
+                currentTask = env.getAllTasks[int(taskIndex)]
                 timeSpent += self.__timePerTaskPerUav[uavTasks][taskIndex]
 
                 if currentTask.getMaxDeliveryWindow() < timeSpent:
@@ -74,13 +74,13 @@ class Chromosome:
         return True
     
     def calculatePercentageRespectDeliveryWindow(self):
-        # not used because we don't have the reference to the tasks
+        # TODO: verify it works and compare with the used method in GA
         taskRespecting = 0
         for uavTasks in self.__tasksPerUav:
             timeSpent = 0
 
             for taskIndex in uavTasks:
-                currentTask = self.allTasks[int(self.__tasksOrder[taskIndex])]
+                currentTask = env.getAllTasks[int(taskIndex)]
                 timeSpent += self.__timePerTaskPerUav[uavTasks][taskIndex]
 
                 if currentTask.getMaxDeliveryWindow >= timeSpent:
@@ -88,23 +88,7 @@ class Chromosome:
             
         self.respectDeliveryPercentage = taskRespecting / len(self.__tasksOrder)
 
-    def respectDeliveryWindowOld(self) -> bool:
-        offset = 0
-        lastOffset = 0
-        currentDrone = 0
-        for t in range(len(self.__tasksOrder)):
-            if (self.__cutPositions[currentDrone] == t):
-                lastOffset = offset
-                currentDrone += 1
-            
-            offset += 1
-            currentTask = self.allTasks[int(self.__tasksOrder[t])]
-            if not currentTask.isChargingPoint() and currentTask.getMaxDeliveryWindow() < t - lastOffset:
-                return False
-        
-        return True
-
-    def setTasksPerUav(self):
+    def generateTasksPerUav(self):
         tasksPerUav = []
 
         for u in range(len(self.__cutPositions)):
@@ -119,29 +103,17 @@ class Chromosome:
 
         self.__tasksPerUav = tasksPerUav
 
+    def getTimePerTaskPerUav(self) -> List[float]:
+        return self.__timePerTaskPerUav
+
     def setTimePerTaskPerUav(self, timePerTaskPerUav: List[float]):
         self.__timePerTaskPerUav = timePerTaskPerUav
         
-    def setEnergyPerTaskPerUav(self, energyPerTaskPerUav: List[float]):
-        self.__energyPerTaskPerUav = energyPerTaskPerUav
-
-    def getTimePerTaskPerUav(self) -> List[float]:
-        return self.__timePerTaskPerUav
-        
     def getEnergyPerTaskPerUav(self) -> List[float]:
         return self.__energyPerTaskPerUav
-
-    @classmethod
-    def toChromosomes(cls, tasksPerUav: List):
-        # not used
-        cutPositions = np.empty(len(tasksPerUav))
-        tasksOrder = np.empty(0)
-
-        offset = 0
-        for u in range(len(tasksPerUav)):
-            tasksOrder = np.append(tasksOrder, tasksPerUav[u])
-            cutPositions[u] = len(tasksPerUav[u] + offset)
-            offset += len(tasksPerUav[u])
+        
+    def setEnergyPerTaskPerUav(self, energyPerTaskPerUav: List[float]):
+        self.__energyPerTaskPerUav = energyPerTaskPerUav
 
     def crossWith(self, tasksOrderForCross: List[int]):
         """Perform partially-mapped crossover (PMX) with the input chromosome.

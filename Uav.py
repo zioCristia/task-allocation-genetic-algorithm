@@ -20,7 +20,7 @@ class Uav:
     BLt = 0.3
     maxVelocity = 20    # TODO add to the constructor
 
-    postion = Position(0,0)
+    position = Position(0,0)
     currentBatteryCapacity = 0
     currentTask = 0
     distanceToTask = 0
@@ -165,7 +165,13 @@ class Uav:
     def isFull(self):
         return self.currentBatteryCapacity == self.batteryCapacity
     
+    def canTakeTaskWeigth(self, task: Task) -> bool:
+        return task.getPackageMass() <= self.maxPayloadMass
+
     def canTakeTask(self, task: Task) -> bool:
+        if not self.canTakeTaskWeigth(task):
+            return False
+
         storageCurrentTask = self.currentTask
         self.setCurrentTask(task)
         taskEnergy = self.taskEnergy(task)
@@ -179,6 +185,9 @@ class Uav:
         tasksEnergy = 0
 
         for t in tasks:
+            if not self.canTakeTaskWeigth(t):
+                raise Exception("Task cannot be taken. Package mass exceed uav max payload.")
+            
             tempUav.setCurrentTask(t)
             currentTaskEnergy = tempUav.taskEnergy(t)
             if currentTaskEnergy == 0:

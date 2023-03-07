@@ -82,8 +82,7 @@ class GeneticAlgo:
         return tasks
     
     def individualCreation(self) -> Individual:
-        """
-        Creation of a new individual with a random Chromosome which respects max uav payload capabilities
+        """Creation of a new individual with a random Chromosome which respects max uav payload capabilities
         """
         chromosome = self.chromosomeCreation()
         while not self.respectMaxPayload(chromosome):  # TODO change to Chromosome.respectMaxPayload
@@ -237,8 +236,7 @@ class GeneticAlgo:
         return tasksUavsMatrix
 
     def maxPayloadMatrix(self):
-        """
-        This function is used to
+        """Generate a matrix (NT*NU) indicating which task can be taken by the uav (0 or 1)
         """
         # TODO: add function to control that all the task can be performed (min(sum(righe))>0)
         maxPayload = np.zeros((self.NT, self.NU))
@@ -248,8 +246,16 @@ class GeneticAlgo:
                 if self.tasks[t].getPackageMass() <= self.uavs[u].getMaxPayloadMass():
                     maxPayload[t][u] = 1
         
+        if self.iterationNumber == 0:
+            self.checkAllTasksCanBePerformed(maxPayload)
+
         return maxPayload
 
+    def checkAllTasksCanBePerformed(self, maxPayloadMatrix):
+        for i in maxPayloadMatrix.sum(1):
+            if i == 0:
+                raise Exception("Not all tasks can be performed by the uav fleet.")
+            
     def randomTaskAssignation(self) -> List[int]:
         # not used
         chromosome = list(range((self.NT)))
@@ -340,7 +346,7 @@ class GeneticAlgo:
     def respectMaxPayload(self, chromosome: Chromosome) -> bool:
         for u in range(self.NU):
             for t in chromosome.getTasksPerUav()[u]:
-                if self.allTasks[int(t)].getPackageMass() > self.uavs[u].getMaxPayloadMass():
+                if not self.uavs[u].canTakeTaskWeigth(self.allTasks[int(t)]):
                     return False
         return True
 
@@ -517,6 +523,7 @@ class GeneticAlgo:
             i.setChromosome(Chromosome.fromTasksPerUav(rechargingTasksRemovedPerUav))
 
     def removeRechargingTaskPerUav(self, tasksOrderPerUav: List):
+        # TODO: to put inside chromosome to create a list without RT so that we don't need to do it every time
         tasksOrderWithoutCTPerUav = []
 
         for tPerUav in tasksOrderPerUav:
@@ -641,7 +648,7 @@ class GeneticAlgo:
             newBestSolution = newBestSolution[0]
 
         print("New best solution:")
-        newBestSolution.toString()
+        print(newBestSolution)
         if (newBestSolution.getEvaluation() < self.solution.getEvaluation() and newBestSolution.getEvaluation() > 0) or self.iterationNumber == 0:
             self.solution = Individual.fromIndividual(newBestSolution)
         self.saveSolutionEvaluation()
@@ -669,12 +676,13 @@ class GeneticAlgo:
         self.deliveryFactor = 1
 
     def run(self):
+        gaStart = time.process_time()
         self.reset()
         self.initialPopulationCreation()
 
         while not self.timeToStop():
             print("Iteration: " + str(self.iterationNumber))
-            start = time.process_time()
+            loopStart = time.process_time()
 
             self.populationFillsWithRandomIndividuals()
 
@@ -702,7 +710,6 @@ class GeneticAlgo:
             # chargeTime = time.process_time() - constrTime
             # print("population charging time: " + str(chargeTime))
 
-            print("Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
             # chargeTime = time.process_time()
             if const.MANDATORY_DELIVERY_WINDOW:
                 self.deliveryWindowPopulationsSelection()
@@ -717,12 +724,13 @@ class GeneticAlgo:
             self.saveSolution()
 
             self.removeRechargingTaskPopulation()
-            print("iteration time: " + str(time.process_time() - start))
-            print("")
+            print("Iteration time: " + str(time.process_time() - loopStart) + "\n")
             self.iterationNumber += 1
 
         if const.RC_ONLY_END:
             self.solution = self.addChargingTasksIndividual(self.solution)
+            
+        print("Total algo time: " + str(time.process_time() - gaStart))
 
         self.printSolution()
         self.graphEvaluations()

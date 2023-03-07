@@ -31,17 +31,17 @@ class Traject:
     def setUav(self, uav):
         self.uavTakingTask = uav
 
-    def setEnergy(self, energy):
-        self.energy = energy
-
     def getEnergy(self):
         return self.energy
-    
-    def setTime(self, time):
-        self.time = time
 
+    def setEnergy(self, energy):
+        self.energy = energy
+    
     def getTime(self):
         return self.time
+
+    def setTime(self, time):
+        self.time = time
 
     def setVelocity(self, velocity):
         self.velocity = velocity

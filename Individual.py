@@ -9,8 +9,8 @@ class Individual:
     
     def __str__(self) -> str:
         details = ''
-        details += f'chromosome: {self.chromosome}\t'
-        details += f'evaluation: {self.evaluation}'
+        details += f'Chromosome: {self.chromosome}\t'
+        details += f'Evaluation: {self.evaluation}'
         return details
     
     @classmethod
@@ -29,29 +29,3 @@ class Individual:
     def setEvaluation(self, evaluation: float):
         self.evaluation = evaluation
     
-    def individualEvaluation(self, chromosome: Chromosome) -> float:
-        return self.objectiveFunction(self.uavsDistances(chromosome), self.uavsMasses(chromosome))
-
-    def objectiveFunction(self, distancesUav: List[float], massesUav: List[float]):
-        return self.ALPHA * max(distancesUav*massesUav) + self.BETA * (distancesUav*massesUav).sum()
-    
-    def uavsDistances(self, chromosome: Chromosome):
-        uavsDistances = np.empty((len(chromosome.getCutPositions())))
-
-        lastCuttingPosition = 0
-        for uavNumber in range(len(chromosome.getCutPositions())):
-            uavsDistances[uavNumber] = self.totalTasksDistance(uavNumber, chromosome.getTasksOrder()[lastCuttingPosition : int(chromosome.getCutPositions()[uavNumber])])
-            lastCuttingPosition = uavNumber
-        
-        return uavsDistances
-    
-    def uavsMasses(self, chromosome: Chromosome):
-        uavsMasses = np.empty((len(chromosome.getCutPositions())))
-
-        for uavNumber in range(len(chromosome.getCutPositions())):
-            uavsMasses[uavNumber] = self.uavs[uavNumber].getMass()
-        
-        return uavsMasses
-    
-    def toString(self):
-        print("Tasks per uav:" + str(self.getChromosome().getTasksPerUav()) + ", Evaluation: " + str(self.evaluation))
