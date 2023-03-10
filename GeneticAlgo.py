@@ -15,22 +15,13 @@ from ChargingPoint import ChargingPoint
 from AlgoConstants import AlgoConstants as const
 
 """
-VINCOLI:
+CONSTRAINTS:
 * max payload per drone
 * delivery window
-* scelta degli individui fatta sul consumo energetico e non più sul tempo di consegna (o t*m)
-* preferire drone che consuma meno
-* preferire ripartizione che consuma meno (fitting function t*m)
-
-TO ADD:
-- vado nella task di ricarica più vicina ma non sempre è quella più conveniente con quella successiva
+* add recharging task depending on the energy used by the drone to complete tasks
 """
 
 class GeneticAlgo:
-    # minimum maximum time weight factor
-    ALPHA = const.ALPHA
-    # minimum consumption weight factor (alpha + beta = 1)
-    BETA = const.BETA
     # number of population individuals (paire number at least > 6*BEST_TAKEN)
     NP = const.NP
     # number of the fittest chromosomes taken without the roulette wheel selection
@@ -44,8 +35,8 @@ class GeneticAlgo:
     # number of the offspring individuals for mutation porpousos
     GROUP_MUTATION_NUMBER = const.GROUP_MUTATION_NUMBER
 
-    population = np.empty((NP), dtype=Individual)
-    oppositePopulation = np.empty((NP), dtype=Individual)
+    population = np.empty((const.NP), dtype=Individual)
+    oppositePopulation = np.empty((const.NP), dtype=Individual)
     solution = Individual(Chromosome([0],[0]), 0)
     bestPopulationEvaluations = []
     solutionEvaluations = []
@@ -351,15 +342,15 @@ class GeneticAlgo:
         return True
 
     def energyObjectiveFunction(self):
-        return self.deliveryFactor * (self.ALPHA * max(self.uavsTasksEnergy) + self.BETA * self.uavsTasksEnergy.sum())
+        return self.deliveryFactor * (const.ALPHA * max(self.uavsTasksEnergy) + const.BETA * self.uavsTasksEnergy.sum())
 
     def initialPopulationCreation(self):
-        for i in range(self.NP):
+        for i in range(const.NP):
             self.population[i] = self.individualCreation()
 
     def populationFillsWithRandomIndividuals(self):
         # add new random individuals to the population till we reach the max number of individuals
-        for i in range(len(self.population), self.NP):
+        for i in range(len(self.population), const.NP):
             self.population = np.append(self.population, self.individualCreation())
 
     def oppositePopulationCreation(self):
@@ -554,14 +545,14 @@ class GeneticAlgo:
     def offspringCreation(self):
         for i in range(0, len(self.population), self.GROUP_MUTATION_NUMBER):
             if np.random.rand() < self.PM and i + self.GROUP_MUTATION_NUMBER < self.NP:
-                if len(self.population) < self.NP:
+                if len(self.population) < const.NP:
                     self.population = np.append(self.population, self.groupMutation(self.population[i:i+self.GROUP_MUTATION_NUMBER]))
                 else:
                     self.population[i:i+self.GROUP_MUTATION_NUMBER] = self.groupMutation(self.population[i:i+self.GROUP_MUTATION_NUMBER])
 
         for i in range(0, len(self.oppositePopulation), self.GROUP_MUTATION_NUMBER):
-            if np.random.rand() < self.PM and i + self.GROUP_MUTATION_NUMBER < self.NP:
-                if len(self.oppositePopulation) < self.NP:
+            if np.random.rand() < self.PM and i + self.GROUP_MUTATION_NUMBER < const.NP:
+                if len(self.oppositePopulation) < const.NP:
                     self.oppositePopulation = np.append(self.oppositePopulation, self.groupMutation(self.oppositePopulation[i:i+self.GROUP_MUTATION_NUMBER]))
                 else:
                     self.oppositePopulation[i:i+self.GROUP_MUTATION_NUMBER] = self.groupMutation(self.oppositePopulation[i:i+self.GROUP_MUTATION_NUMBER])

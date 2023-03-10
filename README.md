@@ -35,10 +35,12 @@ In the 'AlgoConstants.py' there are the mains constants used by the algorithm, c
 Run the 'main.py' to run the genetic algorithm.
 
 ## Next steps:
-The following are the next steps to do on the algorithm, with no particular order:
+The following are the next steps to do on the algorithm, with no particular order, and in my personal opinion:
 
+- Add individual parameter constraintChecked to avoid re-doing it
 - Better use of OOP with for example of a Population class (and Solution class maybe?)
-- Separate Uav with a parent class UavDeployed to differenciate the basic uav characteristic and functionalities and the use itself of the Uav (with for example position, currentTaks, currentTrajectTime,...)
+    - Separate Uav with a parent class UavDeployed to differenciate the basic uav characteristic and functionalities and the use itself of the Uav (with for example position, currentTaks, currentTrajectTime,...)
+    - Separete the genetic algo logic from the task allocation one
 - Rethink of a better way to initialize the population of GA, we do too many operations not anymore needed
 - Save in the indiviual the chromosome with and without RT so that we don't need to recreate it at each loop
 - Use environement class for stockig of uavs, tasks of ga algo
