@@ -19,9 +19,5 @@ def tasksDistances(position: Position, tasks: List):
     
     return distances
 
-# def printDronesTaskes(chromosomes cutPosition):
-#     for d in range(constant.NU):
-#         print("Drone " + d + ": ")
-#         for t in range(cutPosition[d-1],cutPosition[d]):
-#             print(chromosomes[t])
+
     
