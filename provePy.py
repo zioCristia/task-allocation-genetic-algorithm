@@ -2,9 +2,10 @@ import numpy as np
 import random
 import scipy.io
 
-uav1 = scipy.io.loadmat('distancesCostMatrix/Drone_Marco_1_dist_cost.mat')['Res']
+# uav1 = scipy.io.loadmat('distancesCostMatrix/Drone_Marco_1_dist_cost.mat')['Res']
 
-print(uav1['Res'][0,1])
+# print(uav1[0,1])
+# print(uav1[1,0])
 
 def pmx_crossover(parent1, parent2):
     # select two random cut points
@@ -37,3 +38,6 @@ def pmx_crossover(parent1, parent2):
 # parent2 = [3, 7, 5, 1, 6, 0, 2, 4]
 
 # print(sum(parent1))
+
+for i in range(40):
+    print(int(i/10))

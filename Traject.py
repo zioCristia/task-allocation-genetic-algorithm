@@ -4,8 +4,14 @@ from ChargingPoint import ChargingPoint
 from Position import Position
 
 class Traject:
-    def __init__(self, startPosition: Position, task: Task, uavBatteryEnergy: float, uavTotalTimeSpent: float, *, energy: float = 0, velocity = 0, time = 0) -> None:
-        self.startPosition = startPosition
+    def __init__(self, startPositionId: int, 
+                 task: Task, uavBatteryEnergy: float, 
+                 uavTotalTimeSpent: float, 
+                 *, 
+                 energy: float = 0, 
+                 velocity = 0, 
+                 time = 0) -> None:
+        self.startPositionId = startPositionId
         self.task = task
         self.uavBatteryEnergy = uavBatteryEnergy
         self.uavTotalTimeSpent = uavTotalTimeSpent
@@ -16,13 +22,13 @@ class Traject:
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Traject):
-            return self.startPosition == other.startPosition and self.task == other.task and self.uavBatteryEnergy == other.uavBatteryEnergy and self.uavTotalTimeSpent == other.uavTotalTimeSpent
+            return self.startPositionId == other.startPositionId and self.task == other.task and self.uavBatteryEnergy == other.uavBatteryEnergy and self.uavTotalTimeSpent == other.uavTotalTimeSpent
         return False
     
     def __str__(self) -> str:
         details = ''
-        details += f'Start position : {self.startPosition}\n'
-        details += f'Task start position : {self.task.startPosition}\n'
+        details += f'Start PositionId : {self.startPositionId}\n'
+        details += f'Task start position : {self.task.startPositionId}\n'
         details += f'Energy : {self.energy}\n'
         details += f'velocity : {self.velocity}\n'
         details += f'time : {self.time}\n'

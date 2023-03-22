@@ -13,6 +13,7 @@ from Position import Position
 from typing import List
 from ChargingPoint import ChargingPoint
 from AlgoConstants import AlgoConstants as const
+from Environement import Environement
 
 """
 CONSTRAINTS:
@@ -45,18 +46,22 @@ class GeneticAlgo:
     solutionFound = False
     deliveryFactor = 1
 
-    def __init__(self, uavs: List[Uav], tasks: List[Task], chargingPoints: List[ChargingPoint]): #np.ndarray for typing np array
-        self.uavs = uavs
-        self.tasks = tasks
-        self.chargingPoints = chargingPoints
-        self.allTasks = np.append(tasks, chargingPoints)
-        self.NU = len(uavs)
+    def __init__(self, environement: Environement, *, printGraph: bool = True): #np.ndarray for typing np array
+        self.uavs = environement.getUavs()
+        self.tasks = environement.getTasks()
+        self.chargingPoints = environement.getChargingPoints()
+        self.allTasks = np.append(self.tasks, self.chargingPoints)
+
+        self.NU = len(self.uavs)
         const.NU = self.NU
-        self.NT = len(tasks)
+        self.NT = len(self.tasks)
         const.NT = self.NT
-        self.NCP = len(chargingPoints)
+        self.NCP = len(self.chargingPoints)
         const.NCP = self.NCP
+
         self.uavsTasksEnergy = np.empty(self.NU)
+
+        self.printGraph = printGraph
 
     def getSolution(self):
         return self.solution
@@ -151,15 +156,15 @@ class GeneticAlgo:
         newTaskOrder = []
         taskIndex = 0
         while taskIndex < len(taskOrder):
-            if not uav.canTakeTasks(self.taskAndRechargeTask(taskOrder[taskIndex])):
+            if not uav.canTakeTasks(self.taskAndRechargeTask(uav, taskOrder[taskIndex])):
                 # we take the charging task
                 if taskIndex == 0 or uav.isFull():
                     if const.DEBUG:
-                        print("task " + str(taskOrder[taskIndex]) + " cannot be taken by uav " + str(uavNumber) + " from position: " + str(self.uavs[uavNumber].getPosition()) + ". Energy not available!")
-                        uav.canTakeTasks(self.taskAndRechargeTask(taskOrder[taskIndex]))
+                        print("task " + str(taskOrder[taskIndex]) + " cannot be taken by uav " + str(uavNumber) + " from position: " + str(self.uavs[uavNumber].getPositionId()) + ". Energy not available!")
+                        uav.canTakeTasks(self.taskAndRechargeTask(uav, taskOrder[taskIndex]))
                         # uav.taskEnergy(self.tasks[int(taskOrder[0])])
                     return []
-                currentCp = self.optimumChargingPoint(uav.getPosition())
+                currentCp = self.optimumChargingPoint(uav, uav.getPositionId())
                 try:
                     if not uav.canTakeTask(self.chargingPoints[currentCp]) and const.DEBUG:
                         uav.canTakeTask(self.chargingPoints[currentCp])
@@ -190,18 +195,17 @@ class GeneticAlgo:
 
         return Chromosome.fromTasksPerUav(tasksOrder)
 
-    def optimumChargingPoint(self, position: Position, *, nextTask: Task = 0):
+    def optimumChargingPoint(self, uav: Uav, fromPositionId: int, *, nextTask: Task = 0):
         # TODO: add the possibility to find the optimum CP also considering the next task
-        distances = utility.tasksDistances(position, self.chargingPoints)
-
-        if nextTask != 0:
-            for cp in range(self.NCP):
-                distances[cp] = utility.taskDistance(position, self.chargingPoints[cp]) + utility.taskDistance(self.chargingPoints[cp].getStartPosition(), nextTask.getEndPosition())
+        distances = []
+        for cp in self.chargingPoints:
+            distances.append(uav.getDistanceToTaskFromPositionId(cp, fromPositionId))
         
         return np.argmin(distances)
 
-    def taskAndRechargeTask(self, taskNumber: int):
-        return [self.tasks[int(taskNumber)], self.chargingPoints[self.optimumChargingPoint(self.tasks[int(taskNumber)].getEndPosition())]]
+    def taskAndRechargeTask(self, uav: Uav, taskNumber: int):
+        chargingPoint = self.chargingPoints[self.optimumChargingPoint(uav, self.tasks[int(taskNumber)].getEndPositionId())]
+        return [self.tasks[int(taskNumber)], chargingPoint]
 
     def taskUavSelection(self):
         uavSelection = np.empty(self.NT)
@@ -394,21 +398,31 @@ class GeneticAlgo:
         self.oppositePopulation = selectedOppositePopulation
 
     def newPopulationSelection(self):
+        # TODO: rewrite 
         (populationIndividualsNumber, oppositePopulationIndividualsNumber) = self.populationsNewSize()
-        
-        if len(self.population) > self.BEST_TAKEN:
-            populationLeft = self.numberPopulationLeft(populationIndividualsNumber)
-            self.population = np.concatenate((self.takeBestN(self.population, self.BEST_TAKEN),
-                                self.rouletteWheelSelection(self.population, populationLeft)))
-        else:
-            self.population = self.rouletteWheelSelection(self.population, populationIndividualsNumber)
-        
-        if len(self.oppositePopulation) > self.BEST_TAKEN:
+        offSpring = np.empty(0)
+
+        if len(self.oppositePopulation) > self.NP/2:
             oppositePopulationLeft = self.numberPopulationLeft(oppositePopulationIndividualsNumber)
-            self.population = np.concatenate((self.takeBestN(self.oppositePopulation, self.BEST_TAKEN),
+            offSpring = np.concatenate((self.takeBestN(self.oppositePopulation, self.BEST_TAKEN),
                                 self.rouletteWheelSelection(self.oppositePopulation, oppositePopulationLeft)))
         else:
-            self.population = self.rouletteWheelSelection(self.oppositePopulation, oppositePopulationIndividualsNumber)
+        # if len(self.oppositePopulation) > self.BEST_TAKEN and len(self.oppositePopulation) > 0:
+            offSpring = np.concatenate((offSpring, self.oppositePopulation))
+        # else:
+        #     self.population = self.rouletteWheelSelection(self.oppositePopulation, oppositePopulationIndividualsNumber)
+        
+        # if len(self.population) < self.NP/2:
+        #     self.population = np.concatenate(self.population)
+        if len(self.population) > self.NP - len(offSpring):
+            populationLeft = self.numberPopulationLeft(populationIndividualsNumber)
+            offSpring = np.concatenate((offSpring, self.takeBestN(self.population, self.BEST_TAKEN),
+                                self.rouletteWheelSelection(self.population, populationLeft)))
+        # elif len(self.population) < self.BEST_TAKEN and len(self.population) > self.NP/2:
+        #     self.population = self.rouletteWheelSelection(self.population, populationIndividualsNumber)
+        else:
+            offSpring = np.concatenate((offSpring, self.population))
+        
 
     def populationsNewSize(self):
         totalIndividuals = self.population.size + self.oppositePopulation.size
@@ -502,7 +516,7 @@ class GeneticAlgo:
     def randomChromosomeForCrossDifferentFrom(self, n: int, maxNumber: int) -> int:
         # TODO: change it when use class Population
         forCross = np.random.randint(maxNumber)
-        while forCross == n:
+        while forCross == n or forCross >= maxNumber:
                     forCross = np.random.randint(self.NT)
 
         return forCross
@@ -670,7 +684,7 @@ class GeneticAlgo:
         gaStart = time.process_time()
         self.reset()
         self.initialPopulationCreation()
-
+        
         while not self.timeToStop():
             print("Iteration: " + str(self.iterationNumber))
             loopStart = time.process_time()
@@ -695,12 +709,14 @@ class GeneticAlgo:
             self.maxPayloadPopulationsSelection()
             # constrTime = time.process_time() - offSpringTime
             # print("population constraint time: " + str(constrTime))
+            print("After maxPayload Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
 
             # constrTime = time.process_time()
             self.addChargingTasksAndEvaluationPopulations()
             # chargeTime = time.process_time() - constrTime
             # print("population charging time: " + str(chargeTime))
 
+            print("Before delivery Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
             # chargeTime = time.process_time()
             if const.MANDATORY_DELIVERY_WINDOW:
                 self.deliveryWindowPopulationsSelection()
@@ -724,8 +740,10 @@ class GeneticAlgo:
         print("Total algo time: " + str(time.process_time() - gaStart))
 
         self.printSolution()
-        self.graphEvaluations()
-        self.graphSolution()
+
+        if self.printGraph:
+            self.graphEvaluations()
+            self.graphSolution()
 
     def printSolution(self):
         if not self.solutionFound:
@@ -754,36 +772,37 @@ class GeneticAlgo:
             print(i)
 
     def graphSolution(self):
-        solutionChromosome = self.solution.getChromosome()
-        plt.figure(2)
-        plt.plot([0], [0])
-        # startPositions = np.empty(self.NT, 2)
-        # endPositions = np.empty(self.NT, 2)
-        # chargingPoints = np.empty(self.NT, 2)
-        u = 0
-        for t in self.tasks:
-            # startPosition[i] = [t.getStartPosition().getX(), t.getStartPosition().getY()]
-            # endPosition[i] = [t.getEndPosition().getX(), t.getEndPosition().getY()]
-            plt.plot([t.getStartPosition().getX()], [t.getStartPosition().getY()], "^") # , label='Start position')
-            plt.plot([t.getEndPosition().getX()], [t.getEndPosition().getY()], "v") # , label='End position')
-            plt.plot([t.getStartPosition().getX(), t.getEndPosition().getX()], [t.getStartPosition().getY(), t.getEndPosition().getY()], label='Task ' + str(u))
-            u+=1
+        if self.printGraph:
+            solutionChromosome = self.solution.getChromosome()
+            plt.figure(2)
+            plt.plot([0], [0])
+            # startPositions = np.empty(self.NT, 2)
+            # endPositions = np.empty(self.NT, 2)
+            # chargingPoints = np.empty(self.NT, 2)
+            u = 0
+            for t in self.tasks:
+                # startPosition[i] = [t.getStartPosition().getX(), t.getStartPosition().getY()]
+                # endPosition[i] = [t.getEndPosition().getX(), t.getEndPosition().getY()]
+                plt.plot([t.getStartPositionId().getX()], [t.getStartPositionId().getY()], "^") # , label='Start position')
+                plt.plot([t.getEndPositionId().getX()], [t.getEndPositionId().getY()], "v") # , label='End position')
+                plt.plot([t.getStartPositionId().getX(), t.getEndPositionId().getX()], [t.getStartPositionId().getY(), t.getEndPositionId().getY()], label='Task ' + str(u))
+                u+=1
 
-        for cp in self.chargingPoints:
-            plt.plot([cp.getStartPosition().getX()], [cp.getStartPosition().getY()], 'P', label='Charging Point')
+            for cp in self.chargingPoints:
+                plt.plot([cp.getStartPositionId().getX()], [cp.getStartPositionId().getY()], 'P', label='Charging Point')
 
-        if self.solutionFound:
-            for u in range(self.NU):
-                droneTask = solutionChromosome.getTasksPerUav()[u]
+            if self.solutionFound:
+                for u in range(self.NU):
+                    droneTask = solutionChromosome.getTasksPerUav()[u]
 
-                prevPosition = Position(0,0)
-                for t in droneTask:
-                    currentTask = self.allTasks[int(t)]
-                    currentPos = currentTask.getStartPosition()
-                    plt.plot([prevPosition.getX(), currentPos.getX()], [prevPosition.getY(), currentPos.getY()], '--')
-                    prevPosition = currentTask.getEndPosition()
+                    prevPosition = Position(0,0)
+                    for t in droneTask:
+                        currentTask = self.allTasks[int(t)]
+                        currentPos = currentTask.getStartPosition()
+                        plt.plot([prevPosition.getX(), currentPos.getX()], [prevPosition.getY(), currentPos.getY()], '--')
+                        prevPosition = currentTask.getEndPosition()
 
-        plt.legend()
+            plt.legend()
         plt.show()
 
     def graphEvaluations(self):

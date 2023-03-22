@@ -2,35 +2,37 @@ import utility
 from Position import Position
 
 class Task:
-    def __init__(self, startPosition: Position, endPosition: Position, maxDeliveryWindow: int, packageMass: float, chargingPoint: bool = False) -> None:
-        self.startPosition = startPosition
-        self.endPosition = endPosition
-        self.trajectDistance = utility.distance(startPosition, endPosition)
+    def __init__(self, 
+                 startPositionId: int, 
+                 endPositionId: int, 
+                 maxDeliveryWindow: int, 
+                 packageMass: float, 
+                 chargingPoint: bool = False) -> None:
+        
+        self.startPositionId = startPositionId
+        self.endPositionId = endPositionId
         self.packageMass = packageMass
         self.maxDeliveryWindow = maxDeliveryWindow
         self.chargingPoint = chargingPoint
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, Task):
-            return self.startPosition == other.startPosition and self.endPosition == other.endPosition and self.packageMass == other.packageMass
+            return self.startPositionId == other.startPositionId and self.endPositionId == other.endPositionId and self.packageMass == other.packageMass
         return False
     
     def __str__(self) -> str:
         details = ''
-        details += f'Start position : {self.startPosition}\n'
-        details += f'End position : {self.endPosition}\n'
+        details += f'Start position id : {self.startPositionId}\n'
+        details += f'End position id : {self.endPositionId}\n'
         details += f'Package mass : {self.packageMass}\n'
         details += f'Max delivery window : {self.maxDeliveryWindow}\n'
         return details
 
-    def getStartPosition(self) -> Position:
-        return self.startPosition
+    def getStartPositionId(self) -> Position:
+        return self.startPositionId
 
-    def getEndPosition(self) -> Position:
-        return self.endPosition
-
-    def getTrajectDistance(self) -> float:
-        return self.trajectDistance
+    def getEndPositionId(self) -> Position:
+        return self.endPositionId
     
     def getPackageMass(self) -> float:
         return self.packageMass
@@ -38,9 +40,12 @@ class Task:
     def getMaxDeliveryWindow(self) -> int:
         return self.maxDeliveryWindow
 
+    def setMaxDeliveryWindow(self, maxDeliveryWindow: int):
+        self.maxDeliveryWindow = maxDeliveryWindow
+
     def isChargingPoint(self):
         return self.chargingPoint
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(startPosition={self.startPosition})"
+        return f"{self.__class__.__name__}(startPositionId={self.startPositionId})"
     
