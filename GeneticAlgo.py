@@ -113,6 +113,9 @@ class GeneticAlgo:
                     continue
 
             self.saveEnergiesAndTimeIn(newChromosome)
+            if not const.MANDATORY_DELIVERY_WINDOW:
+                self.saveRespectDeliveryPercentage(newChromosome)
+
             self.population[i] = Individual(newChromosome, self.individualEvaluation(newChromosome))
         self.population = np.delete(self.population, individualsIndexToDelete)
 
@@ -130,6 +133,9 @@ class GeneticAlgo:
                     continue
 
             self.saveEnergiesAndTimeIn(newChromosome)
+            if not const.MANDATORY_DELIVERY_WINDOW:
+                self.saveRespectDeliveryPercentage(newChromosome)
+
             self.oppositePopulation[i] = Individual(newChromosome, self.individualEvaluation(newChromosome))
         self.oppositePopulation = np.delete(self.oppositePopulation, individualsIndexToDelete)
 
@@ -153,6 +159,10 @@ class GeneticAlgo:
             raise Exception("Impossible to add recharging task to individual")
         
         self.saveEnergiesAndTimeIn(newChromosome)
+        
+        if not const.MANDATORY_DELIVERY_WINDOW:
+            self.saveRespectDeliveryPercentage(newChromosome)
+
         return Individual(newChromosome, self.individualEvaluation(newChromosome))
 
     def addChargingTasksPerDrone(self, taskOrder: List[int], uavNumber: int) -> List[int]:

@@ -59,7 +59,7 @@ class Chromosome:
     def setRespectDeliveryPercentage(self, respectDeliveryPercentage: float):
         self.respectDeliveryPercentage = respectDeliveryPercentage
     
-    def respectDeliveryWidow(self) -> bool:
+    def respectDeliveryWindow(self) -> bool:
         # TODO: verify it works and compare with the used method in GA
         for uavTasks in self.__tasksPerUav:
             timeSpent = 0
