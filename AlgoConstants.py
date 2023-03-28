@@ -6,8 +6,6 @@ class AlgoConstants:
 
     # for debugging in the crucial part
     DEBUG = False
-    # Add the recharging task only at the end in the solution
-    RC_IN_THE_END = False
     # minimum maximum time weight factor
     ALPHA = 0
     # minimum consumption weight factor (alpha + beta = 1)

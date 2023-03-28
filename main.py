@@ -20,7 +20,7 @@ First try assumptions:
 * batteria
 """
 
-uav0 = Uav(1.2*10**6, 4, 3)
+uav0 = Uav(0.9*10**6, 4, 3)
 uav1 = Uav(0.9*10**6, 2, 1.5)
 task0 = Task(Position(1000, 1000), Position(1000, 3000), 1500, 1)
 task1 = Task(Position(3000, 7000), Position(2000, 3000), 4000, 2)

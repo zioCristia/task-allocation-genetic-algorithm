@@ -106,8 +106,9 @@ class GeneticAlgo:
         # TODO: rewrite this function with calculate energy and add recharging task separate
         individualsIndexToDelete = []
         for i in range(len(self.population)):
-            if const.RC_IN_THE_END:
-                newChromosome = self.calculateTaskEnergy(self.population[i].getChromosome())
+            if const.RC_ONLY_END:
+                newChromosome = self.population[i].getChromosome()
+                self.calculateTaskEnergy(newChromosome)
             else:
                 newChromosome = self.addChargingTasks(self.population[i].getChromosome())
                 if newChromosome == 0:
@@ -117,13 +118,17 @@ class GeneticAlgo:
                     continue
 
             self.saveEnergiesAndTimeIn(newChromosome)
+            if not const.MANDATORY_DELIVERY_WINDOW:
+                self.saveRespectDeliveryPercentage(newChromosome)
+
             self.population[i] = Individual(newChromosome, self.individualEvaluation(newChromosome))
         self.population = np.delete(self.population, individualsIndexToDelete)
 
         individualsIndexToDelete = []
         for i in range(len(self.oppositePopulation)):
-            if const.RC_IN_THE_END:
-                newChromosome = self.calculateTaskEnergy(self.oppositePopulation[i].getChromosome())
+            if const.RC_ONLY_END:
+                newChromosome = self.oppositePopulation[i].getChromosome()
+                self.calculateTaskEnergy(newChromosome)
             else:
                 newChromosome = self.addChargingTasks(self.oppositePopulation[i].getChromosome())
                 if newChromosome == 0:
@@ -133,8 +138,23 @@ class GeneticAlgo:
                     continue
 
             self.saveEnergiesAndTimeIn(newChromosome)
+            if not const.MANDATORY_DELIVERY_WINDOW:
+                self.saveRespectDeliveryPercentage(newChromosome)
+
             self.oppositePopulation[i] = Individual(newChromosome, self.individualEvaluation(newChromosome))
         self.oppositePopulation = np.delete(self.oppositePopulation, individualsIndexToDelete)
+
+    def calculateTaskEnergy(self, chromosome: Chromosome):
+        uavInd = 0
+        for tasksU in chromosome.getTasksPerUav():
+            self.uavs[uavInd].evaluateTasksEnergies(self.tasksFromTaskIndexes(tasksU))
+            uavInd += 1
+
+    def tasksFromTaskIndexes(self, tasksIndexes: List[int]) -> List[Task]:
+        tasksList = []
+        for t in tasksIndexes:
+            tasksList.append(self.tasks[int(t)])
+        return tasksList
 
     def addChargingTasksIndividual(self, individual: Individual) -> Individual:
         newChromosome = self.addChargingTasks(individual.getChromosome())
@@ -144,6 +164,10 @@ class GeneticAlgo:
             raise Exception("Impossible to add recharging task to individual")
         
         self.saveEnergiesAndTimeIn(newChromosome)
+        
+        if not const.MANDATORY_DELIVERY_WINDOW:
+            self.saveRespectDeliveryPercentage(newChromosome)
+
         return Individual(newChromosome, self.individualEvaluation(newChromosome))
 
     def addChargingTasksPerDrone(self, taskOrder: List[int], uavNumber: int) -> List[int]:
