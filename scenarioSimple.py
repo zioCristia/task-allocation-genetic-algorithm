@@ -72,9 +72,11 @@ chargeExecuted = []
 for i in range(20):
     print("RUN " + str(i))
     gaComplexB.run()
-    energies.append(sum(np.sum(gaComplexB.getSolution().getChromosome().getEnergyPerTaskPerUav())))
-    chargeExecuted.append(numberOfChargingTask(gaComplexB.getSolution().getChromosome().getTasksOrder()))
+    if gaComplexB.solutionFound:
+        energies.append(sum(np.sum(gaComplexB.getSolution().getChromosome().getEnergyPerTaskPerUav())))
+        chargeExecuted.append(numberOfChargingTask(gaComplexB.getSolution().getChromosome().getTasksOrder()))
 
+print("Number of solutions: " + len(energies))
 print("EVALUATION")
 print("median: " + str(statistics.median(energies)))
 print("stdev: " + str(statistics.stdev(energies)))

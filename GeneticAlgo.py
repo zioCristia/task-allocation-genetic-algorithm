@@ -111,7 +111,7 @@ class GeneticAlgo:
                 self.calculateTaskEnergy(newChromosome)
             else:
                 newChromosome = self.addChargingTasks(self.population[i].getChromosome())
-                if newChromosome == 0:
+                if newChromosome == -1:
                     if const.DEBUG:
                         print("")
                     individualsIndexToDelete.append(i)
@@ -131,7 +131,7 @@ class GeneticAlgo:
                 self.calculateTaskEnergy(newChromosome)
             else:
                 newChromosome = self.addChargingTasks(self.oppositePopulation[i].getChromosome())
-                if newChromosome == 0:
+                if newChromosome == -1:
                     if const.DEBUG:
                         print("")
                     individualsIndexToDelete.append(i)
@@ -158,7 +158,7 @@ class GeneticAlgo:
 
     def addChargingTasksIndividual(self, individual: Individual) -> Individual:
         newChromosome = self.addChargingTasks(individual.getChromosome())
-        if newChromosome == 0:
+        if newChromosome == -1:
             if const.DEBUG:
                 print("")
             raise Exception("Impossible to add recharging task to individual")
@@ -182,22 +182,24 @@ class GeneticAlgo:
         while taskIndex < len(taskOrder):
             if not uav.canTakeTasks(self.taskAndRechargeTask(uav, taskOrder[taskIndex])):
                 # we take the charging task
-                if taskIndex == 0 or uav.isFull():
+                if taskIndex == -1 or uav.isFull():
                     if const.DEBUG:
                         print("task " + str(taskOrder[taskIndex]) + " cannot be taken by uav " + str(uavNumber) + " from position: " + str(self.uavs[uavNumber].getPositionId()) + ". Energy not available!")
                         uav.canTakeTasks(self.taskAndRechargeTask(uav, taskOrder[taskIndex]))
                         # uav.taskEnergy(self.tasks[int(taskOrder[0])])
+                        wait = input("Press Enter to continue.")
                     return []
                 currentCp = self.optimumChargingPoint(uav, uav.getPositionId())
                 try:
                     if not uav.canTakeTask(self.chargingPoints[currentCp]) and const.DEBUG:
                         uav.canTakeTask(self.chargingPoints[currentCp])
-                        print("")
+                        wait = input("Press Enter to continue.")
                     uav.takeTask(self.chargingPoints[currentCp])
                     newTaskOrder.append(currentCp + self.NT)
                 except:
                     if const.DEBUG:
                         print("error with task order: " + str(taskOrder) + " at task: " + str(taskIndex) + ", taking cp task: " + str(currentCp))
+                        wait = input("Press Enter to continue.")
                     return []
             else:
                 uav.takeTask(self.tasks[int(taskOrder[taskIndex])])
@@ -214,7 +216,7 @@ class GeneticAlgo:
             droneTask = chromosome.getTasksPerUav()[u]
             droneTasksWithCP = self.addChargingTasksPerDrone(droneTask, u)
             if droneTasksWithCP == []:
-                return 0
+                return -1
             tasksOrder.append(droneTasksWithCP)
 
         return Chromosome.fromTasksPerUav(tasksOrder)
@@ -733,21 +735,21 @@ class GeneticAlgo:
             self.maxPayloadPopulationsSelection()
             # constrTime = time.process_time() - offSpringTime
             # print("population constraint time: " + str(constrTime))
-            print("After maxPayload Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
+            # print("After maxPayload Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
 
             # constrTime = time.process_time()
             self.addChargingTasksAndEvaluationPopulations()
             # chargeTime = time.process_time() - constrTime
             # print("population charging time: " + str(chargeTime))
 
-            print("Before delivery Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
+            # print("Before delivery Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
             # chargeTime = time.process_time()
             if const.MANDATORY_DELIVERY_WINDOW:
                 self.deliveryWindowPopulationsSelection()
             # constr2Time = time.process_time() - chargeTime
             # print("population crossover 2 time: " + str(constr2Time))
 
-            print("Before Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
+            # print("Before Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
             self.newPopulationSelection()
             print("After Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
             self.saveBestPopulationEvaluation()
@@ -759,7 +761,11 @@ class GeneticAlgo:
             self.iterationNumber += 1
 
         if const.RC_ONLY_END:
-            self.solution = self.addChargingTasksIndividual(self.solution)
+            try:
+                self.solution = self.addChargingTasksIndividual(self.solution)
+            except:
+                print("Can not create a possible path with this task list. Not all charging points are reachable")
+                self.solutionFound = False
             
         print("Total algo time: " + str(time.process_time() - gaStart))
 
