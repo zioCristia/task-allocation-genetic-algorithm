@@ -106,7 +106,7 @@ class GeneticAlgo:
         # TODO: rewrite this function with calculate energy and add recharging task separate
         individualsIndexToDelete = []
         for i in range(len(self.population)):
-            if const.RC_IN_THE_END:
+            if const.RC_ONLY_END:
                 newChromosome = self.calculateTaskEnergy(self.population[i].getChromosome())
             else:
                 newChromosome = self.addChargingTasks(self.population[i].getChromosome())
@@ -122,7 +122,7 @@ class GeneticAlgo:
 
         individualsIndexToDelete = []
         for i in range(len(self.oppositePopulation)):
-            if const.RC_IN_THE_END:
+            if const.RC_ONLY_END:
                 newChromosome = self.calculateTaskEnergy(self.oppositePopulation[i].getChromosome())
             else:
                 newChromosome = self.addChargingTasks(self.oppositePopulation[i].getChromosome())
@@ -135,6 +135,12 @@ class GeneticAlgo:
             self.saveEnergiesAndTimeIn(newChromosome)
             self.oppositePopulation[i] = Individual(newChromosome, self.individualEvaluation(newChromosome))
         self.oppositePopulation = np.delete(self.oppositePopulation, individualsIndexToDelete)
+
+    def calculateTaskEnergy(self, chromosome: Chromosome):
+        i = 0
+        for t in chromosome.getTasksPerUav():
+            self.uavs[i].evaluateTasksEnergies(t)
+            i += 1
 
     def addChargingTasksIndividual(self, individual: Individual) -> Individual:
         newChromosome = self.addChargingTasks(individual.getChromosome())
@@ -709,21 +715,21 @@ class GeneticAlgo:
             self.maxPayloadPopulationsSelection()
             # constrTime = time.process_time() - offSpringTime
             # print("population constraint time: " + str(constrTime))
-            print("After maxPayload Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
+            # print("After maxPayload Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
 
             # constrTime = time.process_time()
             self.addChargingTasksAndEvaluationPopulations()
             # chargeTime = time.process_time() - constrTime
             # print("population charging time: " + str(chargeTime))
 
-            print("Before delivery Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
+            # print("Before delivery Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
             # chargeTime = time.process_time()
             if const.MANDATORY_DELIVERY_WINDOW:
                 self.deliveryWindowPopulationsSelection()
             # constr2Time = time.process_time() - chargeTime
             # print("population crossover 2 time: " + str(constr2Time))
 
-            print("Before Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
+            # print("Before Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
             self.newPopulationSelection()
             print("After Population size: " + str(len(self.population)) + ", Opposite population size: " + str(len(self.oppositePopulation)))
             self.saveBestPopulationEvaluation()

@@ -2,12 +2,10 @@ class AlgoConstants:
     # change the algo to add the recharging tasks only in the end
     RC_ONLY_END = False
     # delivery window constraints not valued as mandatory
-    MANDATORY_DELIVERY_WINDOW = False
+    MANDATORY_DELIVERY_WINDOW = True
 
     # for debugging in the crucial part
     DEBUG = False
-    # Add the recharging task only at the end in the solution
-    RC_IN_THE_END = False
     # minimum maximum time weight factor
     ALPHA = 0
     # minimum consumption weight factor (alpha + beta = 1)

@@ -159,7 +159,7 @@ class Uav:
         if not task.isChargingPoint():
             C3 = sp.NonlinearConstraint(self.timeSpent, lb=0, ub=self.currentTask.getMaxDeliveryWindow())
             sol = sp.minimize(self.energyConsumption, (5,), bounds=(C1), constraints=(C2, C3))
-            energy = sol.fun[0]
+            energy = sol.fun
             velocity = sol.x[0]
             if not sol.success and energy > self.currentBatteryCapacity:
                 if const.DEBUG:

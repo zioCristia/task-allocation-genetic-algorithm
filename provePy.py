@@ -1,11 +1,13 @@
 import numpy as np
 import random
 import scipy.io
+import os
 
-# uav1 = scipy.io.loadmat('distancesCostMatrix/Drone_Marco_1_dist_cost.mat')['Res']
+print(os.getcwd())
+uav1 = scipy.io.loadmat(r'C:\Users\cbicchieri\Documents\workspace\tesi\task-allocation-genetic-algorithm\Drone_Marco_1_dist_cost.mat')['Res']
 
-# print(uav1[0,1])
-# print(uav1[1,0])
+print(uav1[0,1])
+print(uav1[1,0])
 
 def pmx_crossover(parent1, parent2):
     # select two random cut points
@@ -39,5 +41,5 @@ def pmx_crossover(parent1, parent2):
 
 # print(sum(parent1))
 
-for i in range(40):
-    print(int(i/10))
+# for i in range(40):
+#     print(int(i/10))

@@ -23,16 +23,25 @@ def numberOfChargingTask(taskOrder: List[int]) -> int:
     
     return output
 
+
+def totalEnergy(energyPerUav):
+    totalEnergy = 0
+    for u in energyPerUav:
+        for e in u:
+            totalEnergy += e
+    
+    return totalEnergy
+
 """
 SIMPLE SCENARIO
 As writte in the thesis work, with 
 """
 # TODO: adapt the tasks and chargingPoint to have id instaed of Position
 # TODO: adapt to read distancesMatrix instead of calculate distance
-distancesUav0 = scipy.io.loadmat('distancesCostMatrix/Drone_Marco_1_dist_cost.mat')['Res']
-distancesUav1 = scipy.io.loadmat('distancesCostMatrix/Drone_Marco_2_dist_cost.mat')['Res']
-distancesUav2 = scipy.io.loadmat('distancesCostMatrix/Drone_Marco_3_dist_cost.mat')['Res']
-distancesUav3 = scipy.io.loadmat('distancesCostMatrix/Drone_Marco_4_dist_cost.mat')['Res']
+distancesUav0 = scipy.io.loadmat(r'C:\Users\cbicchieri\Documents\workspace\tesi\task-allocation-genetic-algorithm\Drone_Marco_1_dist_cost.mat')['Res']
+distancesUav1 = scipy.io.loadmat(r'C:\Users\cbicchieri\Documents\workspace\tesi\task-allocation-genetic-algorithm\/Drone_Marco_2_dist_cost.mat')['Res']
+distancesUav2 = scipy.io.loadmat(r'C:\Users\cbicchieri\Documents\workspace\tesi\task-allocation-genetic-algorithm\Drone_Marco_3_dist_cost.mat')['Res']
+distancesUav3 = scipy.io.loadmat(r'C:\Users\cbicchieri\Documents\workspace\tesi\task-allocation-genetic-algorithm\Drone_Marco_4_dist_cost.mat')['Res']
 
 # craetion of uavs
 uav0 = Uav(0.68*10**6, 1, 1, costMatrix=distancesUav0, Ar=0.2, cd=0.3, Ad=0.4, maxVelocity=16)
@@ -63,17 +72,46 @@ for i in range(40):
     task = Task(i, 40 - 1 - i, deadline, payloadMass)
     tasks.append(task)
 
-envComplexB = Environement(uavs, tasks, cps)
-gaComplexB = GeneticAlgo(envComplexB, printGraph=False)
+# envComplexB = Environement(uavs, tasks, cps)
+# gaComplexB = GeneticAlgo(envComplexB, printGraph=False)
+
+# energies = []
+# chargeExecuted = []
+
+# for i in range(20):
+#     print("RUN " + str(i))
+#     gaComplexB.run()
+#     energies.append(totalEnergy(gaComplexB.getSolution().getChromosome().getEnergyPerTaskPerUav()))
+#     chargeExecuted.append(numberOfChargingTask(gaComplexB.getSolution().getChromosome().getTasksOrder()))
+
+# print("EVALUATION")
+# print("median: " + str(statistics.median(energies)))
+# print("stdev: " + str(statistics.stdev(energies)))
+# print("CHARGE EXECUTED")
+# print("median: " + str(statistics.median(chargeExecuted)))
+# print("stdev: " + str(statistics.stdev(chargeExecuted)))
+
+# CASE A
+deadlines = [0.0593, 0.0705, 0.0970, 0.1318, 0.1367, 0.3358, 0.3488, 0.3524, 0.4749, 0.5564, 
+             0.5916, 0.6417, 0.6557, 0.6888, 0.7450, 0.7636, 0.7783, 0.8125, 0.8970, 0.9582, 
+             0.9939, 1.0566, 1.0638, 1.1702, 1.2810, 1.3120, 1.3485, 1.3658, 1.4061, 1.4214, 
+             1.4441, 1.4491, 1.4562, 1.5687, 1.6346, 1.6383, 1.7034, 1.7547, 1.7862, 1.7914]
+
+# setting different deadline for each task
+for i in range(40):
+    tasks[i].setMaxDeliveryWindow(deadlines[i]*10**4)
+
+envComplexA = Environement(uavs, tasks, cps)
+gaComplexA = GeneticAlgo(envComplexA, printGraph=False)
 
 energies = []
 chargeExecuted = []
 
 for i in range(20):
     print("RUN " + str(i))
-    gaComplexB.run()
-    energies.append(sum(np.sum(gaComplexB.getSolution().getChromosome().getEnergyPerTaskPerUav())))
-    chargeExecuted.append(numberOfChargingTask(gaComplexB.getSolution().getChromosome().getTasksOrder()))
+    gaComplexA.run()
+    energies.append(totalEnergy(gaComplexA.getSolution().getChromosome().getEnergyPerTaskPerUav()))
+    chargeExecuted.append(numberOfChargingTask(gaComplexA.getSolution().getChromosome().getTasksOrder()))
 
 print("EVALUATION")
 print("median: " + str(statistics.median(energies)))
@@ -81,17 +119,3 @@ print("stdev: " + str(statistics.stdev(energies)))
 print("CHARGE EXECUTED")
 print("median: " + str(statistics.median(chargeExecuted)))
 print("stdev: " + str(statistics.stdev(chargeExecuted)))
-
-# CASE A
-# deadlines = [0.0593, 0.0705, 0.0970, 0.1318, 0.1367, 0.3358, 0.3488, 0.3524, 0.4749, 0.5564, 
-#              0.5916, 0.6417, 0.6557, 0.6888, 0.7450, 0.7636, 0.7783, 0.8125, 0.8970, 0.9582, 
-#              0.9939, 1.0566, 1.0638, 1.1702, 1.2810, 1.3120, 1.3485, 1.3658, 1.4061, 1.4214, 
-#              1.4441, 1.4491, 1.4562, 1.5687, 1.6346, 1.6383, 1.7034, 1.7547, 1.7862, 1.7914]
-
-# # setting different deadline for each task
-# for i in range(40):
-#     tasks[i].setMaxDeliveryWindow(deadlines[i]*10**4)
-
-# envComplexA = Environement(uavs, tasks, cps)
-# gaComplexA = GeneticAlgo(envComplexA, printGraph=False)
-# gaComplexA.run()
