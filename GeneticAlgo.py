@@ -14,6 +14,7 @@ from typing import List
 from ChargingPoint import ChargingPoint
 from AlgoConstants import AlgoConstants as const
 from Environement import Environement
+from Positions import Positions
 
 """
 CONSTRAINTS:
@@ -803,9 +804,11 @@ class GeneticAlgo:
 
     def graphSolution(self):
         if self.printGraph:
+            pnt = Positions()
+            print(pnt.getPoint(2))
             solutionChromosome = self.solution.getChromosome()
             plt.figure(2)
-            plt.plot([0], [0])
+            # plt.plot([0], [0])
             # startPositions = np.empty(self.NT, 2)
             # endPositions = np.empty(self.NT, 2)
             # chargingPoints = np.empty(self.NT, 2)
@@ -813,13 +816,13 @@ class GeneticAlgo:
             for t in self.tasks:
                 # startPosition[i] = [t.getStartPosition().getX(), t.getStartPosition().getY()]
                 # endPosition[i] = [t.getEndPosition().getX(), t.getEndPosition().getY()]
-                plt.plot([t.getStartPositionId().getX()], [t.getStartPositionId().getY()], "^") # , label='Start position')
-                plt.plot([t.getEndPositionId().getX()], [t.getEndPositionId().getY()], "v") # , label='End position')
-                plt.plot([t.getStartPositionId().getX(), t.getEndPositionId().getX()], [t.getStartPositionId().getY(), t.getEndPositionId().getY()], label='Task ' + str(u))
+                plt.plot([pnt.getPoint(t.getStartPositionId()).getX()], [pnt.getPoint(t.getStartPositionId()).getY()], "^") # , label='Start position')
+                plt.plot([pnt.getPoint(t.getEndPositionId()).getX()], [pnt.getPoint(t.getEndPositionId()).getY()], "v") # , label='End position')
+                plt.plot([pnt.getPoint(t.getStartPositionId()).getX(), pnt.getPoint(t.getEndPositionId()).getX()], [pnt.getPoint(t.getStartPositionId()).getY(), pnt.getPoint(t.getEndPositionId()).getY()], label='Task ' + str(u))
                 u+=1
 
             for cp in self.chargingPoints:
-                plt.plot([cp.getStartPositionId().getX()], [cp.getStartPositionId().getY()], 'P', label='Charging Point')
+                plt.plot([pnt.getPoint(cp.getStartPositionId()).getX()], [pnt.getPoint(cp.getStartPositionId()).getY()], 'P', label='Charging Point')
 
             if self.solutionFound:
                 for u in range(self.NU):
@@ -828,9 +831,9 @@ class GeneticAlgo:
                     prevPosition = Position(0,0)
                     for t in droneTask:
                         currentTask = self.allTasks[int(t)]
-                        currentPos = currentTask.getStartPosition()
+                        currentPos = pnt.getPoint(currentTask.getStartPositionId())
                         plt.plot([prevPosition.getX(), currentPos.getX()], [prevPosition.getY(), currentPos.getY()], '--')
-                        prevPosition = currentTask.getEndPosition()
+                        prevPosition = pnt.getPoint(currentTask.getEndPositionId())
 
             plt.legend()
         plt.show()
