@@ -104,6 +104,7 @@ class Uav:
         self.distanceToTask = self.costMatrix[self.positionId, task.startPositionId]
 
     def evaluateTasksEnergies(self, tasks: List[Task]):
+        self.reset()
         for t in tasks:
             self.setCurrentTask(t)
             taskEnergy = self.taskEnergy(t)

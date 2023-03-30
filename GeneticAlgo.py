@@ -107,49 +107,55 @@ class GeneticAlgo:
         individualsIndexToDelete = []
         for i in range(len(self.population)):
             if const.RC_ONLY_END:
-                newChromosome = self.calculateTaskEnergy(self.population[i].getChromosome())
+                newChromosome = self.population[i].getChromosome()
+                self.calculateTaskEnergy(newChromosome)
             else:
                 newChromosome = self.addChargingTasks(self.population[i].getChromosome())
-                if newChromosome == 0:
+                if newChromosome == -1:
                     if const.DEBUG:
                         print("")
                     individualsIndexToDelete.append(i)
                     continue
 
             self.saveEnergiesAndTimeIn(newChromosome)
+            if not const.MANDATORY_DELIVERY_WINDOW:
+                self.saveRespectDeliveryPercentage(newChromosome)
+
             self.population[i] = Individual(newChromosome, self.individualEvaluation(newChromosome))
         self.population = np.delete(self.population, individualsIndexToDelete)
 
         individualsIndexToDelete = []
         for i in range(len(self.oppositePopulation)):
             if const.RC_ONLY_END:
-                newChromosome = self.calculateTaskEnergy(self.oppositePopulation[i].getChromosome())
+                newChromosome = self.oppositePopulation[i].getChromosome()
+                self.calculateTaskEnergy(newChromosome)
             else:
                 newChromosome = self.addChargingTasks(self.oppositePopulation[i].getChromosome())
-                if newChromosome == 0:
+                if newChromosome == -1:
                     if const.DEBUG:
                         print("")
                     individualsIndexToDelete.append(i)
                     continue
 
             self.saveEnergiesAndTimeIn(newChromosome)
+            if not const.MANDATORY_DELIVERY_WINDOW:
+                self.saveRespectDeliveryPercentage(newChromosome)
+
             self.oppositePopulation[i] = Individual(newChromosome, self.individualEvaluation(newChromosome))
         self.oppositePopulation = np.delete(self.oppositePopulation, individualsIndexToDelete)
 
-    def calculateTaskEnergy(self, chromosome: Chromosome):
-        i = 0
-        for t in chromosome.getTasksPerUav():
-            self.uavs[i].evaluateTasksEnergies(t)
-            i += 1
-
     def addChargingTasksIndividual(self, individual: Individual) -> Individual:
         newChromosome = self.addChargingTasks(individual.getChromosome())
-        if newChromosome == 0:
+        if newChromosome == -1:
             if const.DEBUG:
                 print("")
             raise Exception("Impossible to add recharging task to individual")
         
         self.saveEnergiesAndTimeIn(newChromosome)
+        
+        if not const.MANDATORY_DELIVERY_WINDOW:
+            self.saveRespectDeliveryPercentage(newChromosome)
+
         return Individual(newChromosome, self.individualEvaluation(newChromosome))
 
     def addChargingTasksPerDrone(self, taskOrder: List[int], uavNumber: int) -> List[int]:
@@ -164,22 +170,24 @@ class GeneticAlgo:
         while taskIndex < len(taskOrder):
             if not uav.canTakeTasks(self.taskAndRechargeTask(uav, taskOrder[taskIndex])):
                 # we take the charging task
-                if taskIndex == 0 or uav.isFull():
+                if taskIndex == -1 or uav.isFull():
                     if const.DEBUG:
                         print("task " + str(taskOrder[taskIndex]) + " cannot be taken by uav " + str(uavNumber) + " from position: " + str(self.uavs[uavNumber].getPositionId()) + ". Energy not available!")
                         uav.canTakeTasks(self.taskAndRechargeTask(uav, taskOrder[taskIndex]))
                         # uav.taskEnergy(self.tasks[int(taskOrder[0])])
+                        wait = input("Press Enter to continue.")
                     return []
                 currentCp = self.optimumChargingPoint(uav, uav.getPositionId())
                 try:
                     if not uav.canTakeTask(self.chargingPoints[currentCp]) and const.DEBUG:
                         uav.canTakeTask(self.chargingPoints[currentCp])
-                        print("")
+                        wait = input("Press Enter to continue.")
                     uav.takeTask(self.chargingPoints[currentCp])
                     newTaskOrder.append(currentCp + self.NT)
                 except:
                     if const.DEBUG:
                         print("error with task order: " + str(taskOrder) + " at task: " + str(taskIndex) + ", taking cp task: " + str(currentCp))
+                        wait = input("Press Enter to continue.")
                     return []
             else:
                 uav.takeTask(self.tasks[int(taskOrder[taskIndex])])
@@ -196,7 +204,7 @@ class GeneticAlgo:
             droneTask = chromosome.getTasksPerUav()[u]
             droneTasksWithCP = self.addChargingTasksPerDrone(droneTask, u)
             if droneTasksWithCP == []:
-                return 0
+                return -1
             tasksOrder.append(droneTasksWithCP)
 
         return Chromosome.fromTasksPerUav(tasksOrder)
@@ -741,7 +749,11 @@ class GeneticAlgo:
             self.iterationNumber += 1
 
         if const.RC_ONLY_END:
-            self.solution = self.addChargingTasksIndividual(self.solution)
+            try:
+                self.solution = self.addChargingTasksIndividual(self.solution)
+            except:
+                print("Can not create a possible path with this task list. Not all charging points are reachable")
+                self.solutionFound = False
             
         print("Total algo time: " + str(time.process_time() - gaStart))
 
