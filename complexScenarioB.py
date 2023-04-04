@@ -13,28 +13,13 @@ from GeneticAlgo import GeneticAlgo
 from Environement import Environement
 from typing import List
 import scipy.io
-import statistics
-
-def numberOfChargingTask(taskOrder: List[int]) -> int:
-    output = 0
-    for t in taskOrder:
-        if t > 29 and t < 34:
-            output += 1
-    
-    return output
-
-def totalEnergy(energyPerUav):
-    totalEnergy = 0
-    for u in energyPerUav:
-        for e in u:
-            totalEnergy += e
-    
-    return totalEnergy
+import monteCarloRunScenario as mc
 
 """
 COMPLEX SCENARIO B
-As writte in the thesis work, with 
+As written in the thesis work, with 
 """
+
 distancesUav0 = scipy.io.loadmat(r'C:\\Users\\cbicchieri\\Documents\\workspace\\tesi\\task-allocation-genetic-algorithm\\distancesCostMatrix\\Drone_Marco_1_dist_cost.mat')['Res']
 distancesUav1 = scipy.io.loadmat(r'C:\\Users\\cbicchieri\\Documents\\workspace\\tesi\\task-allocation-genetic-algorithm\\distancesCostMatrix\\Drone_Marco_2_dist_cost.mat')['Res']
 distancesUav2 = scipy.io.loadmat(r'C:\\Users\\cbicchieri\\Documents\\workspace\\tesi\\task-allocation-genetic-algorithm\\distancesCostMatrix\\Drone_Marco_3_dist_cost.mat')['Res']
@@ -71,20 +56,4 @@ for i in range(40):
 envComplexB = Environement(uavs, tasks, cps)
 gaComplexB = GeneticAlgo(envComplexB, printGraph=False)
 
-energies = []
-chargeExecuted = []
-
-for i in range(10):
-    print("RUN " + str(i))
-    gaComplexB.run()
-    if gaComplexB.solutionFound:
-        energies.append(totalEnergy(gaComplexB.getSolution().getChromosome().getEnergyPerTaskPerUav()))
-        chargeExecuted.append(numberOfChargingTask(gaComplexB.getSolution().getChromosome().getTasksOrder()))
-
-print("Number of solutions: " + str(len(energies)))
-print("EVALUATION")
-print("median: " + str(statistics.median(energies)))
-print("stdev: " + str(statistics.stdev(energies)))
-print("CHARGE EXECUTED")
-print("median: " + str(statistics.median(chargeExecuted)))
-print("stdev: " + str(statistics.stdev(chargeExecuted)))
+mc.monteCarloRun(gaComplexB)

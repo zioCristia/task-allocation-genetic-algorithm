@@ -11,7 +11,7 @@ class AlgoConstants:
     # minimum consumption weight factor (alpha + beta = 1)
     BETA = 1
     # number of population individuals (paire number at least > 6*BEST_TAKEN)
-    NP = 20
+    NP = 30
     # number of the fittest chromosomes taken without the roulette wheel selection
     BEST_TAKEN = 4
     # crossover probability
