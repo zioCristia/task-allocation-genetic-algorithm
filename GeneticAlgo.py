@@ -426,43 +426,41 @@ class GeneticAlgo:
 
     def newPopulationSelection(self):
         # TODO: rewrite 
-        (populationIndividualsNumber, oppositePopulationIndividualsNumber) = self.populationsNewSize()
         offSpring = np.empty(0)
+        (populationIndividualsNumber, oppositePopulationIndividualsNumber) = self.populationsNewSize()
 
-        if len(self.oppositePopulation) > self.NP/2:
+        if oppositePopulationIndividualsNumber > self.BEST_TAKEN:
             oppositePopulationLeft = self.numberPopulationLeft(oppositePopulationIndividualsNumber)
             offSpring = np.concatenate((self.takeBestN(self.oppositePopulation, self.BEST_TAKEN),
                                 self.rouletteWheelSelection(self.oppositePopulation, oppositePopulationLeft)))
         else:
-        # if len(self.oppositePopulation) > self.BEST_TAKEN and len(self.oppositePopulation) > 0:
-            offSpring = np.concatenate((offSpring, self.oppositePopulation))
-        # else:
-        #     self.population = self.rouletteWheelSelection(self.oppositePopulation, oppositePopulationIndividualsNumber)
-        
-        # if len(self.population) < self.NP/2:
-        #     self.population = np.concatenate(self.population)
-        if len(self.population) > self.NP - len(offSpring):
+            offSpring = self.takeBestN(self.oppositePopulation, oppositePopulationIndividualsNumber)
+
+        if populationIndividualsNumber > self.BEST_TAKEN:
             populationLeft = self.numberPopulationLeft(populationIndividualsNumber)
             offSpring = np.concatenate((offSpring, self.takeBestN(self.population, self.BEST_TAKEN),
                                 self.rouletteWheelSelection(self.population, populationLeft)))
-        # elif len(self.population) < self.BEST_TAKEN and len(self.population) > self.NP/2:
-        #     self.population = self.rouletteWheelSelection(self.population, populationIndividualsNumber)
         else:
-            offSpring = np.concatenate((offSpring, self.population))
-        
+            offSpring = np.concatenate((offSpring, self.takeBestN(self.population, populationIndividualsNumber)))
+
+        self.population = np.copy(offSpring)
 
     def populationsNewSize(self):
         totalIndividuals = self.population.size + self.oppositePopulation.size
         
-        if self.oppositePopulation.size < self.NP / 2:
-            oppositePopulationIndividualsNumber = self.oppositePopulation.size
-            populationIndividualsNumber = self.NP - oppositePopulationIndividualsNumber
+        if totalIndividuals < self.NP:
+            populationIndividualsNumber = self.population.size
+            oppositePopulationIndividualsNumber = self.oppositePopulation.size      
         else:
-            oppositePopulationIndividualsNumber = int(self.NP * self.oppositePopulation.size/totalIndividuals)
-            populationIndividualsNumber = int(self.NP * self.population.size/totalIndividuals)
+            if self.oppositePopulation.size < self.NP / 2:
+                oppositePopulationIndividualsNumber = self.oppositePopulation.size
+                populationIndividualsNumber = self.NP - oppositePopulationIndividualsNumber
+            else:
+                oppositePopulationIndividualsNumber = int(self.NP * self.oppositePopulation.size/totalIndividuals)
+                populationIndividualsNumber = int(self.NP * self.population.size/totalIndividuals)
 
-        if populationIndividualsNumber + oppositePopulationIndividualsNumber < self.NP:
-            populationIndividualsNumber += self.NP - (populationIndividualsNumber + oppositePopulationIndividualsNumber)
+            if populationIndividualsNumber + oppositePopulationIndividualsNumber < self.NP:
+                populationIndividualsNumber += self.NP - (populationIndividualsNumber + oppositePopulationIndividualsNumber)
         
         return (populationIndividualsNumber, oppositePopulationIndividualsNumber)
 
