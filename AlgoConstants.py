@@ -11,7 +11,7 @@ class AlgoConstants:
     # minimum consumption weight factor (alpha + beta = 1)
     BETA = 1
     # number of population individuals (paire number at least > 6*BEST_TAKEN)
-    NP = 30
+    NP = 10
     # number of the fittest chromosomes taken without the roulette wheel selection
     BEST_TAKEN = 4
     # crossover probability
@@ -23,7 +23,7 @@ class AlgoConstants:
     # Min tolerance for stopping run loop
     DELTA_TOLERANCE = 0.5
     # Last iteration checked for stopping loop (we avoid local minima)
-    LAST_ITER_CHECKED = 5
+    LAST_ITER_CHECKED = 7
     # number of the offspring individuals for mutation porpousos
     GROUP_MUTATION_NUMBER = 8
 

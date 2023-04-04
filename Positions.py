@@ -14,14 +14,13 @@ from typing import List
 import scipy.io
 import statistics
 
-
 class Positions:
     points = []
     def __init__(self) -> None:
-        locations = scipy.io.loadmat('C:\\Users\\cbicchieri\\Documents\\workspace\\tesi\\task-allocation-genetic-algorithm\\distancesCostMatrix\\locations.mat')['points']
+        locations = scipy.io.loadmat('distancesCostMatrix/locations.mat')['points']
 
         for p in range(len(locations[0])):
-            self.points.append(Position(locations[1, p], locations[2, p]))
+            self.points.append(Position(locations[2, p], locations[1, p]))
 
     def getPoint(self, n: int) -> Position:
         return self.points[n]

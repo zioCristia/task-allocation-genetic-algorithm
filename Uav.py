@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from AlgoConstants import AlgoConstants as const
 
 class Uav:
-    eta = 0.8
+    eta = 0.7
     rho = 1.23
     g = 9.81
     Fm = 0.9  # UAV figure of merit

@@ -24,7 +24,7 @@ def numberOfChargingTask(taskOrder: List[int]) -> int:
     return output
 
 """
-COMPLEX SCENARIO A
+SIMPLE SCENARIO A
 As writte in the thesis work, with 
 """
 # TODO: adapt the tasks and chargingPoint to have id instaed of Position
@@ -47,31 +47,39 @@ for u in uavs:
     startId += 1
 
 # cration of charging points
-cps = [ChargingPoint(31, 33)]
+cps = [ChargingPoint(31), ChargingPoint(33)]
+# cps = []
 # for i in range(30, 34):
 #     cps.append(ChargingPoint(i))
 
 # creation of tasks
 payloadMasses = [0.5, 1, 2 ,3]
 
-deadlines = [0.3358, 0.6417, 1.0638, 1.1702, 1.6346]
+# deadlines = [0.3358, 0.6417, 1.0638, 1.1702, 1.6346]
+deadlines = [0.0593, 0.0705, 0.0970, 0.1318, 0.1367, 0.3358, 0.3488, 0.3524, 0.4749, 0.5564, 
+             0.5916, 0.6417, 0.6557, 0.6888, 0.7450, 0.7636, 0.7783, 0.8125, 0.8970, 0.9582, 
+             0.9939, 1.0566, 1.0638, 1.1702, 1.2810, 1.3120, 1.3485, 1.3658, 1.4061, 1.4214, 
+             1.4441, 1.4491, 1.4562, 1.5687, 1.6346, 1.6383, 1.7034, 1.7547, 1.7862, 1.7914]
 
 tasks = []
 for i in range(40):
     payloadMass = payloadMasses[int(i/10)]
-    task = Task(i, 40 - 1 - i, deadlines[i], payloadMass)
+    task = Task(i, 40 - 1 - i, deadlines[i]*10**4, payloadMass)
     tasks.append(task)
 
-tasks = np.random.sample(tasks, len(deadlines))
+# simpleTasks = np.random.choice(tasks, size=5, replace=False)
+# taskIndexes = [tasks.index(elem) for elem in simpleTasks]
+# print(taskIndexes)
+simpleTasks = [tasks[i] for i in [11, 3, 32, 16, 9]] #[12, 3, 32, 24, 9] [12, 16, 32, 2, 26]
 
 # setting different deadline for each task
-for i in range(len(deadlines)):
-    tasks[i].setMaxDeliveryWindow(deadlines[i]*10**4)
+# for i in range(5):
+#     tasks[i].setMaxDeliveryWindow(deadlines[i]*10**4)
 
 energies = []
 chargeExecuted = []
 
-envSimple = Environement(uavs, tasks, cps)
+envSimple = Environement(uavs, simpleTasks, cps)
 gaSimple = GeneticAlgo(envSimple)
 
 gaSimple.run()
