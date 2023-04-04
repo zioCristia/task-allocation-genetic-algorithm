@@ -3,8 +3,10 @@ import random
 import scipy.io
 import os
 
-print(os.getcwd())
-uav1 = scipy.io.loadmat(r'C:\Users\cbicchieri\Documents\workspace\tesi\task-allocation-genetic-algorithm\Drone_Marco_1_dist_cost.mat')['Res']
+# uav1 = scipy.io.loadmat('C:\\Users\\cbicchieri\\Documents\\workspace\\tesi\\task-allocation-genetic-algorithm\\distancesCostMatrix\\locations.mat')['points']
+from Positions import Positions
+pnt = Positions()
+print(pnt.getPoint(2))
 
 print(uav1[0,1])
 print(uav1[1,0])
@@ -41,5 +43,5 @@ def pmx_crossover(parent1, parent2):
 
 # print(sum(parent1))
 
-# for i in range(40):
-#     print(int(i/10))
+for i in range(40):
+    print(int(i/10))
