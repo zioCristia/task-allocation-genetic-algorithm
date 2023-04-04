@@ -20,10 +20,10 @@ COMPLEX SCENARIO B
 As written in the thesis work, with 
 """
 
-distancesUav0 = scipy.io.loadmat(r'C:\\Users\\cbicchieri\\Documents\\workspace\\tesi\\task-allocation-genetic-algorithm\\distancesCostMatrix\\Drone_Marco_1_dist_cost.mat')['Res']
-distancesUav1 = scipy.io.loadmat(r'C:\\Users\\cbicchieri\\Documents\\workspace\\tesi\\task-allocation-genetic-algorithm\\distancesCostMatrix\\Drone_Marco_2_dist_cost.mat')['Res']
-distancesUav2 = scipy.io.loadmat(r'C:\\Users\\cbicchieri\\Documents\\workspace\\tesi\\task-allocation-genetic-algorithm\\distancesCostMatrix\\Drone_Marco_3_dist_cost.mat')['Res']
-distancesUav3 = scipy.io.loadmat(r'C:\\Users\\cbicchieri\\Documents\\workspace\\tesi\\task-allocation-genetic-algorithm\\distancesCostMatrix\\Drone_Marco_4_dist_cost.mat')['Res']
+distancesUav0 = scipy.io.loadmat('distancesCostMatrix/Drone_Marco_1_dist_cost.mat')['Res']
+distancesUav1 = scipy.io.loadmat('distancesCostMatrix/Drone_Marco_2_dist_cost.mat')['Res']
+distancesUav2 = scipy.io.loadmat('distancesCostMatrix/Drone_Marco_3_dist_cost.mat')['Res']
+distancesUav3 = scipy.io.loadmat('distancesCostMatrix/Drone_Marco_4_dist_cost.mat')['Res']
 
 # craetion of uavs
 uav0 = Uav(0.68*10**6, 1, 1, costMatrix=distancesUav0, Ar=0.2, cd=0.3, Ad=0.4, maxVelocity=16)
