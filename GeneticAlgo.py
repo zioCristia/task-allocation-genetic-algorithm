@@ -158,7 +158,19 @@ class GeneticAlgo:
             self.saveRespectDeliveryPercentage(newChromosome)
 
         return Individual(newChromosome, self.individualEvaluation(newChromosome))
+    
+    def calculateTaskEnergy(self, chromosome: Chromosome):
+        uavInd = 0
+        for tasksU in chromosome.getTasksPerUav():
+            self.uavs[uavInd].evaluateTasksEnergies(self.tasksFromTaskIndexes(tasksU))
+            uavInd += 1
 
+    def tasksFromTaskIndexes(self, tasksIndexes: List[int]) -> List[Task]:
+        tasksList = []
+        for t in tasksIndexes:
+            tasksList.append(self.tasks[int(t)])
+        return tasksList
+    
     def addChargingTasksPerDrone(self, taskOrder: List[int], uavNumber: int) -> List[int]:
         self.uavs[uavNumber].reset()
         uav = self.uavs[uavNumber]
@@ -774,6 +786,8 @@ class GeneticAlgo:
             print("\tuav " + str(n) + ": tasks: " + str(t))
             n += 1
         n = 0
+        print("Task delivered on time percentage:")
+        print(self.solution.getChromosome().getRespectDeliveryPercentage())
         print("Times [minutes]:")
         for t in self.solution.getChromosome().getTimePerTaskPerUav():
             print("\tuav " + str(n) + ": tasks: " + str(np.array(t)/60))
