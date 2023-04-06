@@ -46,6 +46,7 @@ class GeneticAlgo:
     iterationNumber = 0
     solutionFound = False
     deliveryFactor = 1
+    algoTime = 0
 
     def __init__(self, environement: Environement, *, printGraph: bool = True): #np.ndarray for typing np array
         self.uavs = environement.getUavs()
@@ -704,6 +705,7 @@ class GeneticAlgo:
         self.uavsTasksEnergy = np.empty(self.NU)
         self.solutionFound = False
         self.deliveryFactor = 1
+        self.algoTime = 0
 
     def run(self):
         gaStart = time.process_time()
@@ -766,7 +768,8 @@ class GeneticAlgo:
                 print("Can not create a possible path with this task list. Not all charging points are reachable")
                 self.solutionFound = False
             
-        print("Total algo time: " + str(time.process_time() - gaStart))
+        self.algoTime = time.process_time() - gaStart
+        print("Total algo time: " + str(self.algoTime))
 
         self.printSolution()
 

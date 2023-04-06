@@ -7,6 +7,8 @@ def monteCarloRun(envComplexA, printGraph):
     energies = []
     tasksExecuted = []
     chargeExecuted = []
+    iterations = []
+    runTime = []
 
     for i in range(10):
         print("RUN " + str(i))
@@ -17,6 +19,8 @@ def monteCarloRun(envComplexA, printGraph):
             if not cst.MANDATORY_DELIVERY_WINDOW:
                 tasksExecuted.append(ga.getSolution().getChromosome().getRespectDeliveryPercentage())
             chargeExecuted.append(numberOfChargingTask(ga.getSolution().getChromosome().getTasksOrder()))
+            iterations.append(ga.iterationNumber)
+            runTime.append(ga.algoTime)
 
     print("Number of solutions: " + str(len(energies)))
     print("TOTAL ENERGY")
@@ -29,6 +33,12 @@ def monteCarloRun(envComplexA, printGraph):
     print("CHARGE EXECUTED")
     print("mean: " + str(statistics.mean(chargeExecuted)))
     print("stdev: " + str(statistics.stdev(chargeExecuted)))
+    print("ITERATIONS")
+    print("mean: " + str(statistics.mean(iterations)))
+    print("stdev: " + str(statistics.stdev(iterations)))
+    print("ALGO TIME")
+    print("mean: " + str(statistics.mean(runTime)))
+    print("stdev: " + str(statistics.stdev(runTime)))
 
 def numberOfChargingTask(taskOrder: List[int]) -> int:
     output = 0
