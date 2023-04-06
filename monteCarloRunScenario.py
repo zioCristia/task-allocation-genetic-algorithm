@@ -23,9 +23,9 @@ def monteCarloRun(envComplexA, printGraph):
             runTime.append(ga.algoTime)
 
     print("Number of solutions: " + str(len(energies)))
-    print("TOTAL ENERGY")
-    print("mean: " + str(statistics.mean(energies)))
-    print("stdev: " + str(statistics.stdev(energies)))
+    print("TOTAL ENERGY [MJ]")
+    print("mean: " + str(statistics.mean(energies/10**6)))
+    print("stdev: " + str(statistics.stdev(energies/10**6)))
     if not cst.MANDATORY_DELIVERY_WINDOW:
         print("TASKS EXECUTED")
         print("mean: " + str(statistics.mean(tasksExecuted)))
