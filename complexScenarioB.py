@@ -54,6 +54,5 @@ for i in range(40):
     tasks.append(task)
 
 envComplexB = Environement(uavs, tasks, cps)
-gaComplexB = GeneticAlgo(envComplexB, printGraph=False)
 
-mc.monteCarloRun(gaComplexB)
+mc.monteCarloRun(envComplexB, printGraph=False)

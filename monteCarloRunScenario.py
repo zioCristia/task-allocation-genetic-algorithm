@@ -3,13 +3,14 @@ from AlgoConstants import AlgoConstants as cst
 import statistics
 from typing import List
 
-def monteCarloRun(ga: GeneticAlgo):
+def monteCarloRun(envComplexA, printGraph):
     energies = []
     tasksExecuted = []
     chargeExecuted = []
 
-    for i in range(20):
+    for i in range(10):
         print("RUN " + str(i))
+        ga = GeneticAlgo(envComplexA, printGraph=printGraph)
         ga.run()
         if ga.solutionFound:
             energies.append(totalEnergy(ga.getSolution().getChromosome().getEnergyPerTaskPerUav()))
@@ -18,18 +19,15 @@ def monteCarloRun(ga: GeneticAlgo):
             chargeExecuted.append(numberOfChargingTask(ga.getSolution().getChromosome().getTasksOrder()))
 
     print("Number of solutions: " + str(len(energies)))
-    print("EVALUATION")
+    print("TOTAL ENERGY")
     print("mean: " + str(statistics.mean(energies)))
-    print("median: " + str(statistics.median(energies)))
     print("stdev: " + str(statistics.stdev(energies)))
     if not cst.MANDATORY_DELIVERY_WINDOW:
         print("TASKS EXECUTED")
         print("mean: " + str(statistics.mean(tasksExecuted)))
-        print("median: " + str(statistics.median(tasksExecuted)))
         print("stdev: " + str(statistics.stdev(tasksExecuted)))
     print("CHARGE EXECUTED")
     print("mean: " + str(statistics.mean(chargeExecuted)))
-    print("median: " + str(statistics.median(chargeExecuted)))
     print("stdev: " + str(statistics.stdev(chargeExecuted)))
 
 def numberOfChargingTask(taskOrder: List[int]) -> int:

@@ -61,6 +61,5 @@ for i in range(40):
     tasks[i].setMaxDeliveryWindow(deadlines[i]*10**4)
 
 envComplexA = Environement(uavs, tasks, cps)
-gaComplexA = GeneticAlgo(envComplexA, printGraph=False)
 
-mc.monteCarloRun(gaComplexA)
+mc.monteCarloRun(envComplexA, False)
