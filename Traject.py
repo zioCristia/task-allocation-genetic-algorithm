@@ -1,6 +1,5 @@
 from Task import Task
 from ChargingPoint import ChargingPoint
-# from Uav import Uav
 from Position import Position
 
 class Traject:

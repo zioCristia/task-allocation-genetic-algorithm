@@ -37,6 +37,7 @@ Run the 'main.py' to run the genetic algorithm.
 ## Next steps:
 The following are the next steps to do on the algorithm, with no particular order, and in my personal opinion:
 
+- Calculate distances with Position(latitude, longitude), for task energy consumption (was it done but get stacked in the git history of the main branch)
 - Add individual parameter constraintChecked to avoid re-doing it
 - Better use of OOP with for example of a Population class (and Solution class maybe?)
     - Separate Uav with a parent class UavDeployed to differenciate the basic uav characteristic and functionalities and the use itself of the Uav (with for example position, currentTaks, currentTrajectTime,...)

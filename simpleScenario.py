@@ -3,7 +3,6 @@ from random import randint
 from re import I
 import numpy as np
 import matplotlib.pyplot as plt
-import constant
 import utility
 from Task import Task
 from ChargingPoint import ChargingPoint
