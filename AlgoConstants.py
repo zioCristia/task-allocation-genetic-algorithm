@@ -1,8 +1,8 @@
 class AlgoConstants:
     # change the algo to add the recharging tasks only in the end
-    RC_ONLY_END = True
+    RC_ONLY_END = False
     # delivery window constraints not valued as mandatory
-    MANDATORY_DELIVERY_WINDOW = False
+    MANDATORY_DELIVERY_WINDOW = True
 
     # for debugging in the crucial part
     DEBUG = False
@@ -21,7 +21,7 @@ class AlgoConstants:
     # max iterations for genetic algo
     MAX_ITER = 15
     # Min tolerance for stopping run loop
-    DELTA_TOLERANCE = 0.5
+    DELTA_TOLERANCE = 100
     # Last iteration checked for stopping loop (we avoid local minima)
     LAST_ITER_CHECKED = 5
     # number of the offspring individuals for mutation porpousos

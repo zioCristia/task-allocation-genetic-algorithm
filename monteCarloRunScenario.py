@@ -10,12 +10,12 @@ def monteCarloRun(envComplexA, printGraph):
     iterations = []
     runTime = []
 
-    for i in range(10):
+    for i in range(20):
         print("RUN " + str(i))
         ga = GeneticAlgo(envComplexA, printGraph=printGraph)
         ga.run()
         if ga.solutionFound:
-            energies.append(totalEnergy(ga.getSolution().getChromosome().getEnergyPerTaskPerUav()))
+            energies.append(totalEnergy(ga.getSolution().getChromosome().getEnergyPerTaskPerUav())/10**6)
             if not cst.MANDATORY_DELIVERY_WINDOW:
                 tasksExecuted.append(ga.getSolution().getChromosome().getRespectDeliveryPercentage())
             chargeExecuted.append(numberOfChargingTask(ga.getSolution().getChromosome().getTasksOrder()))
@@ -24,8 +24,8 @@ def monteCarloRun(envComplexA, printGraph):
 
     print("Number of solutions: " + str(len(energies)))
     print("TOTAL ENERGY [MJ]")
-    print("mean: " + str(statistics.mean(energies/10**6)))
-    print("stdev: " + str(statistics.stdev(energies/10**6)))
+    print("mean: " + str(statistics.mean(energies)))
+    print("stdev: " + str(statistics.stdev(energies)))
     if not cst.MANDATORY_DELIVERY_WINDOW:
         print("TASKS EXECUTED")
         print("mean: " + str(statistics.mean(tasksExecuted)))
