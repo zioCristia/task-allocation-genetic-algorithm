@@ -23,9 +23,15 @@ The capability of the proposed solution of efficiently handling the formulated p
 This is not intended to be either a perfect or a final version of the algorithm, because there is still much to be done and implemented to optimize it and make it easier to use.
 Any suggestions and ways for improvement are accepted.
 
+The current version retrives the distances directly from matrixes 'distancesCostMatrix'. This is done because during the thesis the distances were computed with a risk-aware path planning. For more information on this, it is recommended to read the [thesis](./Cristiano%20Bicchieri%20-%20A%20genetic%20algorithm%20for%20a%20task%20allocation%20problem%20in%20an%20urban%20air%20mobility%20scenario.pdf) or the documents cited in it.
+
 ## Index
+- [Thesis](#thesis)
 - [How to use the algo](#how-to-use-the-algo)
 - [Next steps](#next-steps)
+
+## Thesis
+The reader is invited to read the thesis at the following [link](./Cristiano%20Bicchieri%20-%20A%20genetic%20algorithm%20for%20a%20task%20allocation%20problem%20in%20an%20urban%20air%20mobility%20scenario.pdf).
 
 ## How to use the algo
 To start go to 'main.py' and create your environnemnt with uavs, tasks and recharging tasks. If needed change the uav's constants inside the 'Uav.py' class.
@@ -37,7 +43,7 @@ Run the 'simpleScenario.py' to run the genetic algorithm with a simple example o
 ## Next steps:
 The following are the next steps to do on the algorithm, with no particular order, and in my personal opinion:
 
-- Calculate distances with Position(latitude, longitude), for task energy consumption (was it done but get stacked in the git history of the main branch)
+- Calculate distances with Position(latitude, longitude), for task energy consumption (it was done but get stacked in the git history of the main branch)
 - Add individual parameter constraintChecked to avoid re-doing it
 - Better use of OOP with for example of a Population class (and Solution class maybe?)
     - Separate Uav with a parent class UavDeployed to differenciate the basic uav characteristic and functionalities and the use itself of the Uav (with for example position, currentTaks, currentTrajectTime,...)
