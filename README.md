@@ -31,28 +31,28 @@ The current version retrives the distances directly from matrixes 'distancesCost
 - [Next steps](#next-steps)
 
 ## Thesis
-The reader is invited to read the thesis at the following [link](./Cristiano%20Bicchieri%20-%20A%20genetic%20algorithm%20for%20a%20task%20allocation%20problem%20in%20an%20urban%20air%20mobility%20scenario.pdf).
+The reader is invited to read the thesis at the following [link](./Cristiano%20Bicchieri%20-%20A%20genetic%20algorithm%20for%20a%20task%20allocation%20problem%20in%20an%20urban%20air%20mobility%20scenario.pdf) to have a better understanding of the overall problem.
 
 ## How to use the algo
-To start go to 'main.py' and create your environnemnt with uavs, tasks and recharging tasks. If needed change the uav's constants inside the 'Uav.py' class.
+- To start go to 'main.py' and create your environnemnt with uavs, tasks and recharging tasks. If needed change the uav's constants inside the 'Uav.py' class.
 
-In the 'AlgoConstants.py' there are the mains constants used by the algorithm, change them for your needs. Some variables are also under the 'Uav.py' class.
+- In the 'AlgoConstants.py' there are the mains constants used by the algorithm, change them for your needs. Some variables are also under the 'Uav.py' class.
 
-Run the 'simpleScenario.py' to run the genetic algorithm with a simple example or try the complexScenarioA or B scripts to test its limits.
+- Run the 'simpleScenario.py' to run the genetic algorithm with a simple example or try the complexScenarioA or B scripts to test its limits.
 
 ## Next steps:
 The following are the next steps to do on the algorithm, with no particular order, and in my personal opinion:
 
-- Calculate distances with Position(latitude, longitude), for task energy consumption (it was done but get stacked in the git history of the main branch)
-- Add individual parameter constraintChecked to avoid re-doing it
-- Better use of OOP with for example of a Population class (and Solution class maybe?)
-    - Separate Uav with a parent class UavDeployed to differenciate the basic uav characteristic and functionalities and the use itself of the Uav (with for example position, currentTaks, currentTrajectTime,...)
-    - Separete the genetic algo logic from the task allocation one
-- Rethink of a better way to initialize the population of GA, we do too many operations not anymore needed
-- Save in the indiviual the chromosome with and without RT so that we don't need to recreate it at each loop
-- Use environement class for stockig of uavs, tasks of ga algo
-- Use of Task object insted of number index for tasks and uavs
-- Work with lists of Chromosomes insted of Individuals, use them only after the evaluation
-- Optimize energy consumption algorithm
-- Add a stopping criteria when a key is pressed
+- Calculate distances with Position(latitude, longitude), for task energy consumption (it was done but get stacked in the git history of the main branch).
+- Add individual parameter constraintChecked to avoid re-doing it and lose time.
+- Better use of OOP with for example of a Population class (and Solution class maybe?).
+    - Separate Uav with a parent class UavDeployed to differenciate the basic uav characteristic and functionalities and the use itself of the Uav (with for example position, currentTaks, currentTrajectTime,...).
+    - Separete the genetic algo logic from the task allocation one.
+- Rethink of a better way to initialize the population of GA, we do too many operations no longer needed.
+- Save in the indiviual the chromosome with and without RT so that we don't need to recreate it at each loop.
+- Use environement class for stockig of uavs, tasks of ga algo.
+- Use of Task object insted of number index for tasks and uavs.
+- Work with lists of Chromosomes insted of Individuals, use them only after the evaluation.
+- Optimize energy consumption algorithm.
+- Add a stopping criteria when a key is pressed and so exit the GA loop.
 
